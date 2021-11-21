@@ -6,7 +6,7 @@ from math import pi, sqrt
 
 class Pump:
 
-    def __init__(self, massFlowRate: float = None, volumeFlowRate: float = None, inletPressure: float = None, outletPressure: float = None, inletHead: float = None, outletHead: float = None, fluid: Fluid = None):
+    def __init__(self, massFlowRate: float = None, volumeFlowRate: float = None, inletPressure: float = None, outletPressure: float = None, inletHead: float = None, outletHead: float = None, fluid: Fluid = None, shaftRadius: float = 0):
         
         if massFlowRate != None and volumeFlowRate == None:
 
@@ -66,6 +66,8 @@ class Pump:
         self.fluid = fluid
         self.npsh = self.inletHead - self.fluid.vapourHead
 
+        self.shaftRadius = shaftRadius
+
         # Variables to be calculated in methods below
         self.angularSpeed = None
         self.rpm = None
@@ -74,9 +76,18 @@ class Pump:
         self.headCoefficient = None
         self.blockageEffect = None
         self.impellerOuterRadius = None
+        self.impellerOuterDiameter = None
+        self.exitFlowCoefficient = None
+        self.exitWidth = None
+        self.outerTipSpeed = None
+        self.eyeCavitationCoefficient = None
+        self.eyeFlowCoefficient = None
+        self.eyeTipSpeed = None
+        self.eyeRadius = None
+        self.eyeArea = None
 
 
-    def setSpeed(self, radPerSec: float = None, rpm: float = None, revPerSec: float = None):
+    def setSpeed(self, radPerSec: float = None, rpm: float = None):
 
         if radPerSec != None and rpm == None:
 
@@ -101,7 +112,7 @@ class Pump:
 
         self.blockageEffect = blockageEffect
 
-    def calculate(self):
+    def calculate(self, convergenceCriteria: float = 1e-3):
 
         # Calculate specific speed
         self.specificSpeed = self.angularSpeed * sqrt(self.volumeFlowRate) / ((G * self.headRise) ** (3/4))
@@ -120,4 +131,38 @@ class Pump:
         self.exitFlowCoefficient = 0.1715 * sqrt(self.specificSpeed)
         self.outerWidth = self.volumeFlowRate / 2 * pi * self.angularSpeed * self.impellerOuterRadius ** 2 * self.exitFlowCoefficient
 
+        self.outerTipSpeed = self.angularSpeed * self.impellerOuterRadius
+
+        #TODO: add coefficients for large pumps
+        k1 = 1.69
+        k2 = 0.102
+
+        if self.shaftRadius == 0:
+            self.shaftEyeRatio = 0  # Initial guess
+        else:
+            self.shaftEyeRatio = 0 # Initial guess
         
+        shaftEyeRatioPrev = 10
+        
+        while abs(abs(self.shaftEyeRatio) - abs(shaftEyeRatioPrev)) > convergenceCriteria:
+            
+            shaftEyeRatioPrev = self.shaftEyeRatio
+
+            self.eyeFlowCoefficient = 0.29 # Initial guess
+            eyeFlowCoefficientPrev = 10
+
+            # Iteration loop to converge on value of eye flow coefficient for a given shaft eye ratio
+            while abs(abs(self.eyeFlowCoefficient) - abs(eyeFlowCoefficientPrev)) > convergenceCriteria:
+
+                eyeFlowCoefficientPrev = self.eyeFlowCoefficient
+
+                self.eyeCavitationCoefficient = ((k1 + k2) * (self.eyeFlowCoefficient ** 2)) + k2
+                print(self.eyeFlowCoefficient)
+
+                self.eyeFlowCoefficient = ((self.suctionSpecificSpeed ** 2) * ((self.eyeCavitationCoefficient / 2) ** (3/2))) / (pi * (1 - (self.shaftEyeRatio ** 2)))
+
+            self.eyeRadius = (self.volumeFlowRate / (pi * self.angularSpeed * self.eyeFlowCoefficient * (1 - (self.shaftEyeRatio ** 2)))) ** (1/3)
+
+            self.shaftEyeRatio = self.shaftRadius / self.eyeRadius
+
+        print("Done")
