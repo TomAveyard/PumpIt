@@ -1,7 +1,9 @@
 import conversions
 import constants
 import fluid as fl
-from math import sqrt, pi, log10, exp
+from math import radians, degrees, sqrt, pi, log10, exp, tan, atan2
+from scipy.interpolate import interp1d
+from matplotlib import pyplot as plt
 
 class Pump:
 
@@ -10,25 +12,38 @@ class Pump:
     metreCubedPerSec: float = None, 
     headRise: float = None,
     fluid: fl.Fluid = None,
-    inletFlowAngle: float = 90,
+    approachFlowAngle: float = 90,
     axialThrustBalanceHoles: bool = False,
-    allowableShaftShearStress: float = None,
+    shaftAllowableShearStress: float = None,
     shaftDiameterSafetyFactor: float = 1.1,
     headCoefficientCorrelation: str = "Karassik",
-    headCoefficientOverride: bool = False
+    numberOfBlades: int = 6,
+    hubShaftDiameterRatio: float = 1.5,
+    headCoefficientOverride: bool = False,
+    isSuctionImpeller: bool = False,
+    incidenceAngle: float = 2,
+    bladeThickness: float = None,
+    convergenceCriteria: float = 0.001
     ):
 
         self.rpm = rpm
         self.metreCubedPerSec = metreCubedPerSec
         self.headRise = headRise
         self.fluid = fluid
-        self.inletFlowAngle = inletFlowAngle
+        self.approachFlowAngle = approachFlowAngle
+        self.alpha1 = self.approachFlowAngle # Alternate name
         self.axialThrustBalanceHoles = axialThrustBalanceHoles
-        self.allowableShaftShearStress = allowableShaftShearStress
+        self.shaftAllowableShearStress = shaftAllowableShearStress
         self.shaftDiameterSafetyFactor = shaftDiameterSafetyFactor
-        self.headCoefficientOverride = headCoefficientOverride
         self.headCoefficientCorrelation = headCoefficientCorrelation
-
+        self.headCoefficientOverride = headCoefficientOverride
+        self.hubShaftDiameterRatio = hubShaftDiameterRatio
+        self.numberOfBlades = numberOfBlades
+        self.convergenceCriteria = convergenceCriteria
+        self.isSuctionImpeller = isSuctionImpeller
+        self.incidenceAngle = incidenceAngle
+        self.bladeThickness = bladeThickness
+        
         # Unit conversions
 
         self.radPerSec = conversions.RPMToAngularSpeed(self.rpm)
@@ -46,7 +61,8 @@ class Pump:
         self.specificSpeedEU = (self.rpm * sqrt(self.metreCubedPerSec)) / (self.headRise ** 0.75)
         self.specificSpeedUS = (self.rpm * sqrt(self.gallonPerMin)) / (self.headRiseFeet ** 0.75)
 
-        # Estimate pump hydraulic efficiency
+        # Estimate efficiencies
+        # Table 3.9 Gulich
 
         if metreCubedPerSec < 0.005:
 
@@ -59,11 +75,16 @@ class Pump:
         else:
             a = 0.5
 
+        m = 0.1 * a * ((Qref / metreCubedPerSec) ** 0.15) * ((45 / self.specificSpeedEU) ** 0.06)
+
+        self.overallEfficiency = 1 - 0.095 * ((Qref / self.metreCubedPerSec) ** m) - 0.3 * ((0.35 - log10(self.specificSpeedEU / 23)) ** 2) * ((Qref / self.metreCubedPerSec) ** 0.05)
+
         m = 0.08 * a * ((Qref / metreCubedPerSec) ** 0.15) * ((45 / self.specificSpeedEU) ** 0.06)
 
         self.hydraulicEfficiency = 1 - 0.055 * ((Qref / self.metreCubedPerSec) ** m) - 0.2 * ((0.26 - log10(self.specificSpeedEU / 25)) ** 2) * ((Qref / self.metreCubedPerSec) ** 0.1)
 
         # Estimate volumetric losses
+        # Table 3.5 Gulich
 
         if self.specificSpeedEU >= 27:
             a = 0.15
@@ -81,8 +102,15 @@ class Pump:
 
         self.volumetricEfficiency = self.metreCubedPerSec / (self.metreCubedPerSec + self.impellerInletSealLeakageFlowRate)
 
-        # Calculate shaft diameter
+        # Calculate shaft power
 
+        self.shaftPower = (self.kgPerSec * self.headRise * constants.G) / self.overallEfficiency
+
+        # Calculate shaft diameter
+        # Eq T7.1.2 Gulich
+
+        self.minShaftDiameter = 3.65 * ((self.shaftPower / (self.rpm * self.shaftAllowableShearStress)) ** (1/3))
+        self.shaftDiameter = self.minShaftDiameter * self.shaftDiameterSafetyFactor
 
         # Estimation of head coefficient
 
@@ -108,12 +136,68 @@ class Pump:
         # Calculate impeller outer diameter
 
         self.impellerOuterDiameter = (2 / self.radPerSec) * sqrt((constants.G * self.headRise) / self.headCoefficient)
+        self.u2 = (self.impellerOuterDiameter / 2) * self.radPerSec
+
+        # Calculate impeller inlet diameter
+
+        self.impellerHubDiameter = self.shaftDiameter * self.hubShaftDiameterRatio
+        self.impellerHubDiameterDimensionless = self.impellerHubDiameter / self.impellerOuterDiameter
+
+        self.impellerInletDiameter = self.impellerHubDiameter * 1.5
+        impellerInletDiameterPrev = 10
+
+        if self.isSuctionImpeller:
+
+            self.fd1 = 1.20
+
+        else:
+
+            if self.specificSpeedEU <= 15:
+
+                self.fd1 = 1.15
+
+            elif self.specificSpeedEU >= 40:
+
+                self.fd1 = 1.05
+
+            else:
+
+                self.fd1 = interp1d([40, 15], [1.15, 1.05])(self.specificSpeedEU)
+
+        while abs(abs(self.impellerInletDiameter) - abs(impellerInletDiameterPrev)) > self.convergenceCriteria:
+
+            impellerInletDiameterPrev = self.impellerInletDiameter
+
+            self.u1 = (self.impellerInletDiameter / 2) * self.radPerSec
+            self.c1m = (4 * self.metreCubedPerSec) / (pi * ((self.impellerInletDiameter ** 2) - (self.impellerHubDiameter ** 2)))
+            self.swirlNumber = 1 - (self.c1m / (self.u1 * tan(radians(self.approachFlowAngle))))
+
+            self.impellerInletDiameterDimensionless = self.fd1 * sqrt((self.impellerHubDiameterDimensionless ** 2) + (1.5e-3 * self.headCoefficient * ((self.specificSpeedEU ** 1.33) / (self.swirlNumber ** 0.67))))
+            self.impellerInletDiameter = self.impellerInletDiameterDimensionless * self.impellerOuterDiameter
+
+        # Calculate inlet velocity triangle without blockage
+
+        self.c1u = self.c1m / tan(radians(self.approachFlowAngle))
+        self.c1 = sqrt((self.c1m ** 2) + (self.c1u ** 2))
+        self.w1 = sqrt((self.c1m ** 2) + ((self.u1 - self.c1u) ** 2))
+        self.inletFlowCoefficient = self.c1m / self.u1
+        self.beta1 = degrees(atan2(self.c1m, self.u1 - self.c1u))
+
+        # Calculate required blade thickness if not overridden
+
+        if self.bladeThickness == None:
+
+            upperHead = 600
+            lowerHead = 10
+            self.bladeThicknessDimensionless = interp1d([upperHead, lowerHead], [0.022, 0.016])(self.headRise)
+            self.bladeThickness = self.bladeThicknessDimensionless * self.impellerOuterDiameter
 
 
     def printResults(self, 
     inputs: bool = True,
     performance: bool = True,
     sizes: bool = True,
+    velocityTriangles: bool = True,
     decimalPlaces: int = 4
     ):
 
@@ -168,8 +252,10 @@ class Pump:
 
             efficienciesOutput = [
                 printSeparator, "Efficiencies \n", printSeparator,
+                "\nOverall Efficiency: \n",
+                formatNumber(self.overallEfficiency), " \n",
                 "\nHydraulic Efficiency: \n",
-                formatNumber(self.hydraulicEfficiency), " \n"
+                formatNumber(self.hydraulicEfficiency), " \n",
                 "\nVolumetric Efficiency: \n",
                 formatNumber(self.volumetricEfficiency), " \n"
             ]
@@ -192,23 +278,62 @@ class Pump:
 
             sizesOutput = [
                 printSeparator, "Sizes \n", printSeparator,
+                "\nShaft Diameter: \n",
+                formatNumber(self.shaftDiameter*1e3), " [mm]\n",
+                "\nHub Diameter: \n",
+                formatNumber(self.impellerHubDiameter*1e3), " [mm]\n",
+                "\nImpeller Inlet Diameter: \n",
+                formatNumber(self.impellerInletDiameter*1e3), " [mm]\n",
                 "\nImpeller Outer Diameter: \n",
-                formatNumber(self.impellerOuterDiameter*1e3), " mm\n"
+                formatNumber(self.impellerOuterDiameter*1e3), " [mm]\n",
+                "\nBlade Thickness: \n",
+                formatNumber(self.bladeThickness*1e3), " [mm]\n"
             ]
 
             sizesString = "".join(sizesOutput)
 
             print(sizesString)
 
+        if velocityTriangles:
+
+            velocityTriangleOutput = [
+                printSeparator, "Inlet Velocity Triangle Without Blockage\n", printSeparator,
+                "\nTip Speed u1: \n",
+                formatNumber(self.u1), " [m s^-1]\n",
+                "\nAbsolute Speed c1: \n",
+                formatNumber(self.c1), " [m s^-1]\n", "(Meridional: ", formatNumber(self.c1m), " [m s^-1])\n", "(Circumferential: ", formatNumber(self.c1u), " [m s^-1])\n",
+                "\nRelative Speed w1: \n", 
+                formatNumber(self.w1), " [m s^-1]\n",
+                "\nApproach Flow Angle alpha1: \n", 
+                formatNumber(self.approachFlowAngle), " [deg]\n",
+                "\nRelative Flow Angle beta1: \n", 
+                formatNumber(self.beta1), " [deg]\n",
+                "\nFlow Coefficient: \n", 
+                formatNumber(self.inletFlowCoefficient), " \n",
+                printSeparator, "Oulet Velocity Triangle \n", printSeparator,
+                "\nTip Speed u2: \n",
+                formatNumber(self.u2), " [m s^-1]\n"
+            ]
+
+            velocityTriangleString = "".join(velocityTriangleOutput)
+
+            print(velocityTriangleString)
+
         print("")
 
-"""
+    def plotVelocityTriangle(self, area: str):
+
+        pass
+
+
 fluid = fl.Fluid(density=787, viscosity=2.86e-3, vapourPressure=3000)
-pump = Pump(rpm=30000,
+pump = Pump(rpm=25000,
             metreCubedPerSec=0.00167,
             headRise=291.4,
             fluid=fluid,
+            shaftAllowableShearStress=8e7
 )
+
 """
 
 fluid = fl.Fluid(density=1000, viscosity=2.86e-3, vapourPressure=3000)
@@ -216,7 +341,10 @@ pump = Pump(rpm=1450,
             metreCubedPerSec=0.0778,
             headRise=20,
             fluid=fluid,
+            shaftAllowableShearStress=8e7
 )
+
+"""
 
 pump.printResults()
 
