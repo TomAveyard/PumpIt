@@ -19,13 +19,17 @@ class Pump:
     headCoefficientCorrelation: str = "Karassik",
     numberOfBlades: int = 6,
     hubShaftDiameterRatio: float = 1.5,
+    inletBladeInnerDiameterHubRatio: float = 1.1,
+    inletBladeOuterDiameterEyeShroudRatio: float = 1,
     headCoefficientOverride: bool = False,
     isSuctionImpeller: bool = False,
     incidenceAngle: float = 2,
     bladeThickness: float = None,
     leadingEdgeThicknessLengthRatio: float = 0.2,
-    bladeInclination: float = 90,
+    inletBladeInclination: float = 90,
     outletBladeAngle: float = 22.5,
+    outletBladeInclination: float = 90,
+    outletWidthOverride: float = None,
     convergenceCriteria: float = 0.001
     ):
 
@@ -41,14 +45,18 @@ class Pump:
         self.headCoefficientCorrelation = headCoefficientCorrelation
         self.headCoefficientOverride = headCoefficientOverride
         self.hubShaftDiameterRatio = hubShaftDiameterRatio
+        self.inletBladeInnerDiameterHubRatio = inletBladeInnerDiameterHubRatio # TODO: Find better way of defining this
+        self.inletBladeOuterDiameterEyeShroudRatio = inletBladeOuterDiameterEyeShroudRatio # TODO: Find better way of defining this
         self.numberOfBlades = numberOfBlades
         self.convergenceCriteria = convergenceCriteria
         self.isSuctionImpeller = isSuctionImpeller
         self.incidenceAngle = incidenceAngle
         self.bladeThickness = bladeThickness
         self.leadingEdgeThicknessLengthRatio = leadingEdgeThicknessLengthRatio
-        self.bladeInclination = bladeInclination
+        self.inletBladeInclination = inletBladeInclination
         self.outletBladeAngle = outletBladeAngle
+        self.outletWidthOverride = outletWidthOverride
+        self.outletBladeInclination = outletBladeInclination
         
         # Unit conversions
 
@@ -108,6 +116,8 @@ class Pump:
 
         self.volumetricEfficiency = self.metreCubedPerSec / (self.metreCubedPerSec + self.impellerInletSealLeakageFlowRate)
 
+        self.impellerVolumeFlowRate = self.metreCubedPerSec / self.volumetricEfficiency
+
         # Calculate shaft power
 
         self.shaftPower = (self.kgPerSec * self.headRise * constants.G) / self.overallEfficiency
@@ -141,13 +151,13 @@ class Pump:
 
         # Calculate impeller outer diameter
 
-        self.impellerOuterDiameter = (2 / self.radPerSec) * sqrt((constants.G * self.headRise) / self.headCoefficient)
-        self.u2 = (self.impellerOuterDiameter / 2) * self.radPerSec
+        self.impellerOutletDiameter = (2 / self.radPerSec) * sqrt((constants.G * self.headRise) / self.headCoefficient)
+        self.u2 = (self.impellerOutletDiameter / 2) * self.radPerSec
 
         # Calculate impeller inlet diameter
 
         self.impellerHubDiameter = self.shaftDiameter * self.hubShaftDiameterRatio
-        self.impellerHubDiameterDimensionless = self.impellerHubDiameter / self.impellerOuterDiameter
+        self.impellerHubDiameterDimensionless = self.impellerHubDiameter / self.impellerOutletDiameter
 
         self.impellerInletDiameter = self.impellerHubDiameter * 1.5
         impellerInletDiameterPrev = 10
@@ -175,11 +185,25 @@ class Pump:
             impellerInletDiameterPrev = self.impellerInletDiameter
 
             self.u1 = (self.impellerInletDiameter / 2) * self.radPerSec
-            self.c1m = (4 * self.metreCubedPerSec) / (pi * ((self.impellerInletDiameter ** 2) - (self.impellerHubDiameter ** 2)))
+            self.c1m = (4 * self.impellerVolumeFlowRate) / (pi * ((self.impellerInletDiameter ** 2) - (self.impellerHubDiameter ** 2)))
             self.swirlNumber = 1 - (self.c1m / (self.u1 * tan(radians(self.approachFlowAngle))))
 
             self.impellerInletDiameterDimensionless = self.fd1 * sqrt((self.impellerHubDiameterDimensionless ** 2) + (1.5e-3 * self.headCoefficient * ((self.specificSpeedEU ** 1.33) / (self.swirlNumber ** 0.67))))
-            self.impellerInletDiameter = self.impellerInletDiameterDimensionless * self.impellerOuterDiameter
+            self.impellerInletDiameter = self.impellerInletDiameterDimensionless * self.impellerOutletDiameter
+
+        # TODO: following 3 sections may not be correct/neccessary
+
+        # Calculate inlet blade inner diameter
+
+        self.inletBladeInnerDiameter = self.impellerHubDiameter * self.inletBladeInnerDiameterHubRatio
+
+        # Calculate inlet blade outer diameter
+
+        self.inletBladeOuterDiameter = self.impellerInletDiameter * self.inletBladeOuterDiameterEyeShroudRatio
+
+        # Calculate geometric average of diameters at impeller inlet
+
+        self.inletDiametersGeometricAverage = sqrt(0.5 * ((self.inletBladeInnerDiameter ** 2) + (self.inletBladeOuterDiameter ** 2)))
 
         # Calculate inlet velocity triangle without blockage
 
@@ -196,7 +220,7 @@ class Pump:
             upperHead = 600
             lowerHead = 10
             self.bladeThicknessDimensionless = interp1d([upperHead, lowerHead], [0.022, 0.016])(self.headRise)
-            self.bladeThickness = self.bladeThicknessDimensionless * self.impellerOuterDiameter
+            self.bladeThickness = self.bladeThicknessDimensionless * self.impellerOutletDiameter
 
         # Calculate leading edge tip radius
         profileLength = self.bladeThickness / self.leadingEdgeThicknessLengthRatio
@@ -212,9 +236,11 @@ class Pump:
 
             beta1Bprev = self.beta1B
 
-            self.bladeBlockage = (1 - ((self.numberOfBlades * self.leadingEdgeTipRadius) / (pi * self.impellerInletDiameter * sin(radians(self.beta1B)) * sin(radians(self.bladeInclination))))) ** (-1)
-            self.beta1dash = degrees(atan2(self.c1m * self.bladeBlockage, self.u1 - self.c1u))
+            self.inletBladeBlockage = (1 - ((self.numberOfBlades * self.leadingEdgeTipRadius) / (pi * self.impellerInletDiameter * sin(radians(self.beta1B)) * sin(radians(self.inletBladeInclination))))) ** (-1)
+            self.beta1dash = degrees(atan2(self.c1m * self.inletBladeBlockage, self.u1 - self.c1u))
             self.beta1B = self.beta1dash + self.incidenceAngle
+
+        self.inletBladeAngle = self.beta1B
 
         # Calculate inlet velocity triangle with blockage
 
@@ -226,11 +252,60 @@ class Pump:
         # Estimate outlet width
         # Eq 7.1 Gulich
 
-        specificSpeedEURef = 100
-        self.impellerOutletWidthDimensionless = 0.017 + (0.0262 * (self.specificSpeedEU / specificSpeedEURef)) - (0.08 * ((self.specificSpeedEU / specificSpeedEURef) ** 2)) + (0.0093 * ((self.specificSpeedEU / specificSpeedEURef) ** 3))
-        self.impellerOutletWidth = self.impellerOutletWidthDimensionless * self.impellerOuterDiameter
+        if self.outletWidthOverride == None:
+            specificSpeedEURef = 100
+            self.impellerOutletWidthDimensionless = 0.017 + (0.0262 * (self.specificSpeedEU / specificSpeedEURef)) - (0.08 * ((self.specificSpeedEU / specificSpeedEURef) ** 2)) + (0.0093 * ((self.specificSpeedEU / specificSpeedEURef) ** 3))
+            self.impellerOutletWidth = self.impellerOutletWidthDimensionless * self.impellerOutletDiameter
+        else:
+            self.impellerOutletWidth = self.outletWidthOverride
 
+        # Calculate outlet blade blockage
 
+        self.outletBladeBlockage = (1 - ((self.bladeThickness * self.numberOfBlades) / (pi * self.impellerOutletDiameter * sin(radians(self.outletBladeAngle)) * sin(radians(self.outletBladeInclination))))) ** (-1)
+
+        # Calculate slip factor
+
+        self.etalim = exp((-8.16 * sin(radians(self.outletBladeAngle))) / self.numberOfBlades)
+        self.inletDiametersGeometricAverageDimensionless = self.inletDiametersGeometricAverage / self.impellerOutletDiameter
+
+        if self.inletDiametersGeometricAverageDimensionless <= self.etalim:
+            self.kw = 1
+        else:
+            self.kw = 1 - ((self.inletDiametersGeometricAverageDimensionless - self.etalim) / (1 - self.etalim))
+
+        self.slipFactor = 0.98 * (1 - (sqrt(sin(radians(self.outletBladeAngle))) / (self.numberOfBlades ** 0.7))) * self.kw
+
+        # Calculate areas
+
+        self.inletArea = pi * (((self.impellerInletDiameter / 2) ** 2) - ((self.impellerHubDiameter / 2) ** 2))
+        self.outletArea = pi * self.impellerOutletDiameter * self.impellerOutletWidth
+
+        # Calculate head
+
+        self.calculatedHead = ((self.hydraulicEfficiency * (self.u2 ** 2) / constants.G) * 
+                                (self.slipFactor - ((self.impellerVolumeFlowRate / (self.outletArea * self.u2 * tan(radians(self.outletBladeAngle)))) *
+                                (self.outletBladeBlockage + ((self.outletArea * self.inletDiametersGeometricAverageDimensionless * tan(radians(self.outletBladeAngle))) / (self.inletArea * tan(radians(self.approachFlowAngle)))))))
+                                )
+
+        # Calculate outlet velocity triangle 
+
+        self.beta2B = self.outletBladeAngle
+
+        self.c2m = self.impellerVolumeFlowRate / self.outletArea
+        self.c2mDash = self.c2m * self.outletBladeBlockage
+        self.outletFlowCoefficient = self.c2m / self.u2
+        self.c2u = self.u2 * (self.slipFactor - ((self.c2m * self.outletBladeBlockage) / (self.u2 * tan(radians(self.beta2B)))))
+        self.c2 = sqrt((self.c2m ** 2) + (self.c2u ** 2))
+        self.c2Dash = sqrt((self.c2mDash ** 2) + (self.c2u ** 2))
+        self.w2u = self.u2 - self.c2u
+        self.w2 = sqrt((self.c2m ** 2) + (self.w2u ** 2))
+        self.w2dash = sqrt((self.c2mDash ** 2) + (self.w2u ** 2))
+        self.alpha2 = degrees(atan2(self.c2m, self.c2u))
+        self.alpha2Dash = degrees(atan2(self.c2mDash, self.c2u))
+        self.beta2 = degrees(atan2(self.c2m, self.w2u))
+        self.beta2Dash = degrees(atan2(self.c2mDash, self.w2u))
+        self.deviationAngle = self.beta2B - self.beta2
+        self.deviationAngleDash = self.beta2B - self.beta2Dash
 
 
     def printResults(self, 
@@ -325,7 +400,7 @@ class Pump:
                 "\nImpeller Inlet Diameter: \n",
                 formatNumber(self.impellerInletDiameter*1e3), " [mm]\n",
                 "\nImpeller Outer Diameter: \n",
-                formatNumber(self.impellerOuterDiameter*1e3), " [mm]\n",
+                formatNumber(self.impellerOutletDiameter*1e3), " [mm]\n",
                 "\nImpeller Outlet Width: \n",
                 formatNumber(self.impellerOutletWidth*1e3), " [mm]\n"
                 "\nBlade Thickness: \n",
@@ -354,7 +429,7 @@ class Pump:
                 formatNumber(self.inletFlowCoefficient), " \n",
                 printSeparator, "Inlet Velocity Triangle With Blockage\n", printSeparator,
                 "\nBlade Blockage: \n",
-                formatNumber(self.bladeBlockage), " \n",
+                formatNumber(self.inletBladeBlockage), " \n",
                 "\nTip Speed u1: \n",
                 formatNumber(self.u1), " [m s^-1]\n",
                 "\nAbsolute Speed c1': \n",
@@ -371,9 +446,40 @@ class Pump:
                 formatNumber(self.incidenceAngle), " [deg]\n",
                 "\nFlow Coefficient: \n", 
                 formatNumber(self.inletFlowCoefficientDash), " \n",
-                printSeparator, "Outlet Velocity Triangle\n", printSeparator,
+                printSeparator, "Outlet Velocity Triangle Without Blockage\n", printSeparator,
                 "\nTip Speed u2: \n",
                 formatNumber(self.u2), " [m s^-1]\n",
+                "\nAbsolute Speed c2: \n",
+                formatNumber(self.c2), " [m s^-1]\n", "(Meridional c2m: ", formatNumber(self.c2m), " [m s^-1])\n", "(Circumferential c2u: ", formatNumber(self.c2u), " [m s^-1])\n",
+                "\nRelative Speed w2: \n", 
+                formatNumber(self.w2), " [m s^-1]\n",
+                "\nAbsolute Outlet Flow Angle alpha2: \n", 
+                formatNumber(self.alpha2), " [deg]\n",
+                "\nRelative Flow Angle beta2: \n", 
+                formatNumber(self.beta2), " [deg]\n",
+                "\nDeviation Angle delta: \n", 
+                formatNumber(self.deviationAngle), " [deg]\n",
+                "\nFlow Coefficient: \n", 
+                formatNumber(self.outletFlowCoefficient), " \n",
+                printSeparator, "Outlet Velocity Triangle With Blockage\n", printSeparator,
+                "\nBlade Blockage: \n",
+                formatNumber(self.outletBladeBlockage), " \n",
+                "\nTip Speed u2: \n",
+                formatNumber(self.u2), " [m s^-1]\n",
+                "\nAbsolute Speed c2': \n",
+                formatNumber(self.c2Dash), " [m s^-1]\n", "(Meridional c2m': ", formatNumber(self.c2mDash), " [m s^-1])\n", "(Circumferential c2u: ", formatNumber(self.c2u), " [m s^-1])\n",
+                "\nRelative Speed w2': \n", 
+                formatNumber(self.w2dash), " [m s^-1]\n",
+                "\nApproach Flow Angle alpha2': \n", 
+                formatNumber(self.alpha2Dash), " [deg]\n",
+                "\nRelative Flow Angle beta2': \n", 
+                formatNumber(self.beta2Dash), " [deg]\n",
+                "\nBlade Angle beta2B: \n", 
+                formatNumber(self.beta2B), " [deg]\n",
+                "\nDeviation Angle delta': \n", 
+                formatNumber(self.deviationAngleDash), " [deg]\n",
+                "\nFlow Coefficient: \n", 
+                formatNumber(self.outletFlowCoefficient), " \n"
             ]
 
             velocityTriangleString = "".join(velocityTriangleOutput)
@@ -399,11 +505,26 @@ class Pump:
             wdash = self.w1dash
             betadash = self.beta1dash
             i = self.incidenceAngle
-
+        if area.lower() == "outlet":
+            title = "Outlet"
+            u = self.u2
+            c = self.c2
+            cu = self.c2u
+            cm = self.c2m
+            w = self.w2
+            beta = self.beta2
+            betaB = self.beta2B
+            alpha = self.alpha2
+            cdash= self.c2Dash
+            cmdash = self.c2mDash
+            wdash = self.w2dash
+            betadash = self.beta2Dash
+            i = self.deviationAngle
 
         hw = 0.25
         hl = 0.5
         standardOffset = 2
+        lineClashOffset = 0.1
         padding = 1
 
         ax = plt.axes()
@@ -413,24 +534,24 @@ class Pump:
         #ax.annotate("U: \n" + str(round(u, 2)) + " [m/s]", xy=(u/2, 0 - standardOffset))
 
         # Absolute velocity
-        ax.arrow(u, 0, cu, cm, head_width=hw, head_length=hl, length_includes_head=True, edgecolor="red", facecolor="red", label="C: " + str(round(c, 2)) + " [m/s]")
+        ax.arrow(u, 0, -cu, cm, head_width=hw, head_length=hl, length_includes_head=True, edgecolor="red", facecolor="red", label="C: " + str(round(c, 2)) + " [m/s]")
         #ax.annotate("C: \n" + str(round(c, 2)) + " [m/s]", xy=(u-2*standardOffset, (0+cm)/2 - standardOffset))
 
         # Absolute velocity components
-        if self.approachFlowAngle != 90:
-            ax.arrow(u, 0, cu, 0, head_width=hw, head_length=hl, length_includes_head=True, edgecolor="lightgrey", facecolor="lightgrey", label="Cu: " + str(round(cu, 2)) + " [m/s]")
-            ax.arrow(u+cu, 0, 0, cm, head_width=hw, head_length=hl, length_includes_head=True, edgecolor="grey", facecolor="grey", label="Cm: " + str(round(cm, 2)) + " [m/s]")
+        if alpha != 90:
+            ax.arrow(u, lineClashOffset, -cu, 0, head_width=hw, head_length=hl, length_includes_head=True, edgecolor="lightgrey", facecolor="lightgrey", label="Cu: " + str(round(cu, 2)) + " [m/s]")
+            ax.arrow(u-cu, 0, 0, cm, head_width=hw, head_length=hl, length_includes_head=True, edgecolor="grey", facecolor="grey", label="Cm: " + str(round(cm, 2)) + " [m/s]")
 
         # Relative velocity
-        ax.arrow(0, 0, u+cu, cm, head_width=hw, head_length=hl, length_includes_head=True, edgecolor="blue", facecolor="blue", label="W: " + str(round(w, 2)) + " [m/s]")
+        ax.arrow(0, 0, u-cu, cm, head_width=hw, head_length=hl, length_includes_head=True, edgecolor="blue", facecolor="blue", label="W: " + str(round(w, 2)) + " [m/s]")
         #ax.annotate("W: \n" + str(round(w, 2)) + " [m/s]", xy=((u+cu) / 2, (0+cm)/2 - standardOffset))
 
         # Absolute velocity with blockage
-        ax.arrow(u, 0, cu, cmdash, head_width=hw, head_length=hl, length_includes_head=True, edgecolor="red", facecolor="red", linestyle="dotted", label="C': " + str(round(cdash, 2)) + " [m/s]")
+        ax.arrow(u, 0, -cu, cmdash, head_width=hw, head_length=hl, length_includes_head=True, edgecolor="red", facecolor="red", linestyle="dotted", label="C': " + str(round(cdash, 2)) + " [m/s]")
         # Relative velocity with blockage
-        ax.arrow(0, 0, u+cu, cmdash, head_width=hw, head_length=hl, length_includes_head=True, edgecolor="blue", facecolor="blue", linestyle="dotted", label="W': " + str(round(wdash, 2)) + " [m/s]")
+        ax.arrow(0, 0, u-cu, cmdash, head_width=hw, head_length=hl, length_includes_head=True, edgecolor="blue", facecolor="blue", linestyle="dotted", label="W': " + str(round(wdash, 2)) + " [m/s]")
         # Blade angle line
-        ax.arrow(0, 0, u+cu, (u+cu) * tan(radians(betaB)), head_width=0, head_length=0, length_includes_head=True, edgecolor="black", facecolor="black", linestyle="dotted", label="BetaB: " + str(round(betaB, 2)) + " [deg]")
+        ax.arrow(0, 0, u-cu, (u-cu) * tan(radians(betaB)), head_width=0, head_length=0, length_includes_head=True, edgecolor="black", facecolor="black", linestyle="dotted", label="BetaB: " + str(round(betaB, 2)) + " [deg]")
 
         ax.legend()
         ax.set_title(title + " Velocity Triangle")
@@ -442,15 +563,16 @@ class Pump:
         plt.show()
 
 
-
+"""
 fluid = fl.Fluid(density=787, viscosity=2.86e-3, vapourPressure=3000)
-pump = Pump(rpm=25000,
-            metreCubedPerSec=0.00167,
+pump = Pump(rpm=20000,
+            metreCubedPerSec=6/(60**2),
             headRise=291.4,
             fluid=fluid,
             shaftAllowableShearStress=8e7,
-            numberOfBlades=20,
-            approachFlowAngle=80
+            numberOfBlades=6,
+            approachFlowAngle=90,
+            outletBladeAngle=27,
 )
 
 """
@@ -463,7 +585,7 @@ pump = Pump(rpm=1450,
             shaftAllowableShearStress=8e7
 )
 
-"""
+
 
 pump.printResults()
-
+pump.plotVelocityTriangle("outlet")
