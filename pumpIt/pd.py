@@ -9,6 +9,10 @@ class Pump:
 
     def __init__(self, 
     rpm: float = None, 
+    suctionSpecificSpeedEU: float = None,
+    suctionSidePressure: float = None,
+    NPSHA: float = None,
+    specificSpeedEU: float = None,
     metreCubedPerSec: float = None, 
     headRise: float = None,
     fluid: fl.Fluid = None,
@@ -34,6 +38,10 @@ class Pump:
     ):
 
         self.rpm = rpm
+        self.suctionSpecificSpeedEU = suctionSpecificSpeedEU
+        self.suctionSidePressure = suctionSidePressure
+        self.NPSHA = NPSHA
+        self.specificSpeedEU = specificSpeedEU
         self.metreCubedPerSec = metreCubedPerSec
         self.headRise = headRise
         self.fluid = fluid
@@ -45,8 +53,8 @@ class Pump:
         self.headCoefficientCorrelation = headCoefficientCorrelation
         self.headCoefficientOverride = headCoefficientOverride
         self.hubShaftDiameterRatio = hubShaftDiameterRatio
-        self.inletBladeInnerDiameterHubRatio = inletBladeInnerDiameterHubRatio # TODO: Find better way of defining this
-        self.inletBladeOuterDiameterEyeShroudRatio = inletBladeOuterDiameterEyeShroudRatio # TODO: Find better way of defining this
+        self.inletBladeInnerDiameterHubRatio = inletBladeInnerDiameterHubRatio # TODO: Better method of defining this parameter when blade design is looked at in more detail
+        self.inletBladeOuterDiameterEyeShroudRatio = inletBladeOuterDiameterEyeShroudRatio # TODO: Better method of defining this parameter when blade design is looked at in more detail
         self.numberOfBlades = numberOfBlades
         self.convergenceCriteria = convergenceCriteria
         self.isSuctionImpeller = isSuctionImpeller
@@ -57,7 +65,43 @@ class Pump:
         self.outletBladeAngle = outletBladeAngle
         self.outletWidthOverride = outletWidthOverride
         self.outletBladeInclination = outletBladeInclination
-        
+
+        # Convert suction side pressure to NPSHA or vice versa if either is specified
+
+        if self.suctionSidePressure != None:
+
+            self.NPSHA = conversions.pressureToHead(self.suctionSidePressure - self.fluid.vapourPressure, self.fluid.density)
+
+        elif self.NPSHA != None:
+
+            self.suctionSidePressure = conversions.headToPressure(self.fluid.vapourHead + self.NPSHA, self.fluid.density)
+
+        # Calculate suction performance based on specified parameters
+
+        if self.suctionSpecificSpeedEU != None and self.suctionSidePressure != None:
+
+            self.NPSH3 = 0.878 * (self.NPSHA ** (0.14))
+            self.rpm = self.suctionSpecificSpeedEU * (self.NPSH3 ** 0.75) / sqrt(self.metreCubedPerSec)
+
+        elif self.suctionSidePressure != None and self.rpm != None:
+
+            self.NPSH3 = 0.878 * (self.NPSHA ** (0.14))
+            self.suctionSpecificSpeedEU = self.rpm * sqrt(self.metreCubedPerSec) / ((self.NPSH3) ** 0.75)
+
+        elif self.rpm != None and self.suctionSpecificSpeedEU != None:
+
+            self.NPSH3 = ((self.rpm / self.suctionSpecificSpeedEU) * sqrt(self.metreCubedPerSec)) ** (1.333)
+
+        elif self.specificSpeedEU != None and self.suctionSpecificSpeedEU != None:
+
+            self.rpm = self.specificSpeedEU * (self.headRise ** 0.75) / sqrt(self.metreCubedPerSec)
+            self.NPSH3 = ((self.rpm / self.specificSpeedEU) * sqrt(self.metreCubedPerSec)) ** (1.333)
+            self.NPSHA = 1.16 * (self.NPSH3 ** 1.14)
+
+        else:
+
+            exit("Error: invalid pump specififcation")
+
         # Unit conversions
 
         self.radPerSec = conversions.RPMToAngularSpeed(self.rpm)
@@ -191,7 +235,7 @@ class Pump:
             self.impellerInletDiameterDimensionless = self.fd1 * sqrt((self.impellerHubDiameterDimensionless ** 2) + (1.5e-3 * self.headCoefficient * ((self.specificSpeedEU ** 1.33) / (self.swirlNumber ** 0.67))))
             self.impellerInletDiameter = self.impellerInletDiameterDimensionless * self.impellerOutletDiameter
 
-        # TODO: following 3 sections may not be correct/neccessary
+        # TODO: following 3 sections to be overwritten when blade design is looked at in more detail
 
         # Calculate inlet blade inner diameter
 
@@ -563,16 +607,17 @@ class Pump:
         plt.show()
 
 
-"""
-fluid = fl.Fluid(density=787, viscosity=2.86e-3, vapourPressure=3000)
-pump = Pump(rpm=20000,
+
+fluid = fl.Fluid(density=787, viscosity=2.86e-3, vapourPressure=4100)
+pump = Pump(suctionSpecificSpeedEU=750,
+            suctionSidePressure=3e5,
             metreCubedPerSec=6/(60**2),
             headRise=291.4,
             fluid=fluid,
             shaftAllowableShearStress=8e7,
             numberOfBlades=6,
             approachFlowAngle=90,
-            outletBladeAngle=27,
+            outletBladeAngle=27
 )
 
 """
@@ -585,7 +630,8 @@ pump = Pump(rpm=1450,
             shaftAllowableShearStress=8e7
 )
 
-
+"""
 
 pump.printResults()
-pump.plotVelocityTriangle("outlet")
+#pump.plotVelocityTriangle("outlet")
+print(pump.rpm)

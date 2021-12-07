@@ -1,4 +1,4 @@
-from pumpIt.conversions import pressureToHead
+from conversions import pressureToHead
 
 class Fluid:
 

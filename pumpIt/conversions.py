@@ -1,5 +1,5 @@
 from math import pi
-from pumpIt.constants import G
+from constants import G
 
 def pressureToHead(pressure: float, density: float):
 
