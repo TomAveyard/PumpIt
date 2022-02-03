@@ -5,7 +5,7 @@ from math import atan, radians, degrees, sqrt, pi, log10, exp, tan, atan2, sin, 
 from scipy.interpolate import interp1d
 from matplotlib import pyplot as plt
 
-class Pump:
+class Impeller:
 
     def __init__(self, 
     rpm: float = None, 
@@ -13,7 +13,8 @@ class Pump:
     suctionSidePressure: float = None,
     NPSHA: float = None,
     specificSpeedEU: float = None,
-    metreCubedPerSec: float = None, 
+    metreCubedPerSec: float = None,
+    kgPerSec: float = None,
     headRise: float = None,
     fluid: fl.Fluid = None,
     approachFlowAngle: float = 90,
@@ -43,6 +44,7 @@ class Pump:
         self.NPSHA = NPSHA
         self.specificSpeedEU = specificSpeedEU
         self.metreCubedPerSec = metreCubedPerSec
+        self.kgPerSec = kgPerSec
         self.headRise = headRise
         self.fluid = fluid
         self.approachFlowAngle = approachFlowAngle
@@ -65,6 +67,22 @@ class Pump:
         self.outletBladeAngle = outletBladeAngle
         self.outletWidthOverride = outletWidthOverride
         self.outletBladeInclination = outletBladeInclination
+
+        # Convert kg/s to m3/s or vice versa
+
+        if self.kgPerSec != None and self.metreCubedPerSec == None:
+
+            self.metreCubedPerSec = self.kgPerSec / self.fluid.density
+
+        elif self.metreCubedPerSec != None and self.kgPerSec == None:
+
+            self.kgPerSec = self.metreCubedPerSec * self.fluid.density
+
+        else:
+
+            exit("Error: both m3PerSec and kgPerSec have been specified - please specify only one")
+
+        print(self.metreCubedPerSec)
 
         # Convert suction side pressure to NPSHA or vice versa if either is specified
 
@@ -100,7 +118,7 @@ class Pump:
 
         else:
 
-            exit("Error: invalid pump specififcation")
+            exit("Error: invalid pump specification")
 
         # Unit conversions
 
@@ -108,7 +126,6 @@ class Pump:
         self.revPerSec = conversions.RPMToRevPerSec(self.rpm)
         self.metreCubedPerMin = self.metreCubedPerSec * 60
         self.metreCubedPerHour = self.metreCubedPerMin * 60
-        self.kgPerSec = self.metreCubedPerSec * self.fluid.density
         self.gallonPerMin = conversions.metreCubedPerSecToGallonPerMin(self.metreCubedPerSec)
         self.headRiseFeet = conversions.metreToFeet(self.headRise)
         self.pressureRise = conversions.headToPressure(self.headRise, self.fluid.density)
@@ -122,7 +139,7 @@ class Pump:
         # Estimate efficiencies
         # Table 3.9 Gulich
 
-        if metreCubedPerSec < 0.005:
+        if self.metreCubedPerSec < 0.005:
 
             print("Warning: hydraulic efficiency estimate not valid for Q < 0.005 [m^3 s^-1] so value may be unreliable")
 
@@ -133,11 +150,11 @@ class Pump:
         else:
             a = 0.5
 
-        m = 0.1 * a * ((Qref / metreCubedPerSec) ** 0.15) * ((45 / self.specificSpeedEU) ** 0.06)
+        m = 0.1 * a * ((Qref / self.metreCubedPerSec) ** 0.15) * ((45 / self.specificSpeedEU) ** 0.06)
 
         self.overallEfficiency = 1 - 0.095 * ((Qref / self.metreCubedPerSec) ** m) - 0.3 * ((0.35 - log10(self.specificSpeedEU / 23)) ** 2) * ((Qref / self.metreCubedPerSec) ** 0.05)
 
-        m = 0.08 * a * ((Qref / metreCubedPerSec) ** 0.15) * ((45 / self.specificSpeedEU) ** 0.06)
+        m = 0.08 * a * ((Qref / self.metreCubedPerSec) ** 0.15) * ((45 / self.specificSpeedEU) ** 0.06)
 
         self.hydraulicEfficiency = 1 - 0.055 * ((Qref / self.metreCubedPerSec) ** m) - 0.2 * ((0.26 - log10(self.specificSpeedEU / 25)) ** 2) * ((Qref / self.metreCubedPerSec) ** 0.1)
 
@@ -271,7 +288,7 @@ class Pump:
         ellipseLocus = sqrt((profileLength ** 2) - ((self.bladeThickness ** 2) / 4))
         self.leadingEdgeTipRadius = profileLength - ellipseLocus
 
-        # Calculate inlet velocity triangle with blockage
+        # Calculate inlet blade angle and inlet blockage
 
         self.beta1B = self.beta1 + self.incidenceAngle
         beta1Bprev = self.beta1B + 10
@@ -357,6 +374,7 @@ class Pump:
     performance: bool = True,
     sizes: bool = True,
     velocityTriangles: bool = True,
+    suction: bool = True,
     decimalPlaces: int = 4
     ):
 
@@ -530,6 +548,22 @@ class Pump:
 
             print(velocityTriangleString)
 
+        if suction:
+
+            suctionOutput = [
+                printSeparator, "Suction Performance\n", printSeparator,
+                "\nSuction Specific Speed: \n",
+                formatNumber(self.suctionSpecificSpeedEU), " \n",
+                "\nAvailable NPSH: \n",
+                formatNumber(self.NPSHA), " [m]\n",
+                "\nRequired (3% Cavitation) NPSH: \n",
+            formatNumber(self.NPSH3), " [m]\n"
+            ]
+
+            suctionString = "".join(suctionOutput)
+
+            print(suctionString)
+
         print("")
 
     def plotVelocityTriangle(self, area: str, withBlockage: bool = True, withoutBlockage: bool = True, decimalPoints: int = 2):
@@ -609,29 +643,17 @@ class Pump:
 
 
 fluid = fl.Fluid(density=787, viscosity=2.86e-3, vapourPressure=4100)
-pump = Pump(suctionSpecificSpeedEU=750,
+pump = Pump(suctionSpecificSpeedEU=650,
             suctionSidePressure=3e5,
-            metreCubedPerSec=6/(60**2),
-            headRise=291.4,
+            kgPerSec=1.32,
+            headRise=295,
             fluid=fluid,
             shaftAllowableShearStress=8e7,
             numberOfBlades=6,
             approachFlowAngle=90,
-            outletBladeAngle=27
+            outletBladeAngle=22.5
 )
-
-"""
-
-fluid = fl.Fluid(density=1000, viscosity=2.86e-3, vapourPressure=3000)
-pump = Pump(rpm=1450,
-            metreCubedPerSec=0.0778,
-            headRise=20,
-            fluid=fluid,
-            shaftAllowableShearStress=8e7
-)
-
-"""
 
 pump.printResults()
-#pump.plotVelocityTriangle("outlet")
-print(pump.rpm)
+pump.plotVelocityTriangle("inlet")
+pump.plotVelocityTriangle("outlet")
