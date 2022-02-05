@@ -24,8 +24,7 @@ class Impeller:
     headCoefficientCorrelation: str = "Karassik",
     numberOfBlades: int = 6,
     hubShaftDiameterRatio: float = 1.5,
-    inletBladeInnerDiameterHubRatio: float = 1.1,
-    inletBladeOuterDiameterEyeShroudRatio: float = 1,
+    inletBladeInnerDiameterRatio: float = 1.05,
     headCoefficientOverride: bool = False,
     isSuctionImpeller: bool = False,
     incidenceAngle: float = 2,
@@ -40,24 +39,28 @@ class Impeller:
 
         self.rpm = rpm
         self.suctionSpecificSpeedEU = suctionSpecificSpeedEU
+        self.nss = self.suctionSpecificSpeedEU # Alias
         self.suctionSidePressure = suctionSidePressure
         self.NPSHA = NPSHA
         self.specificSpeedEU = specificSpeedEU
+        self.nq = self.suctionSpecificSpeedEU
         self.metreCubedPerSec = metreCubedPerSec
         self.kgPerSec = kgPerSec
         self.headRise = headRise
+        self.deltaH = self.headRise # Alias
         self.fluid = fluid
         self.approachFlowAngle = approachFlowAngle
-        self.alpha1 = self.approachFlowAngle # Alternate name
+        self.alpha1 = self.approachFlowAngle # Alias
         self.axialThrustBalanceHoles = axialThrustBalanceHoles
         self.shaftAllowableShearStress = shaftAllowableShearStress
         self.shaftDiameterSafetyFactor = shaftDiameterSafetyFactor
         self.headCoefficientCorrelation = headCoefficientCorrelation
         self.headCoefficientOverride = headCoefficientOverride
         self.hubShaftDiameterRatio = hubShaftDiameterRatio
-        self.inletBladeInnerDiameterHubRatio = inletBladeInnerDiameterHubRatio # TODO: Better method of defining this parameter when blade design is looked at in more detail
-        self.inletBladeOuterDiameterEyeShroudRatio = inletBladeOuterDiameterEyeShroudRatio # TODO: Better method of defining this parameter when blade design is looked at in more detail
+        self.inletBladeInnerDiameterRatio = inletBladeInnerDiameterRatio
+        self.d1iRatio = self.inletBladeInnerDiameterRatio #Alias
         self.numberOfBlades = numberOfBlades
+        self.ZLa = self.numberOfBlades #Alias
         self.convergenceCriteria = convergenceCriteria
         self.isSuctionImpeller = isSuctionImpeller
         self.incidenceAngle = incidenceAngle
@@ -81,8 +84,6 @@ class Impeller:
         else:
 
             exit("Error: both m3PerSec and kgPerSec have been specified - please specify only one")
-
-        print(self.metreCubedPerSec)
 
         # Convert suction side pressure to NPSHA or vice versa if either is specified
 
@@ -252,15 +253,17 @@ class Impeller:
             self.impellerInletDiameterDimensionless = self.fd1 * sqrt((self.impellerHubDiameterDimensionless ** 2) + (1.5e-3 * self.headCoefficient * ((self.specificSpeedEU ** 1.33) / (self.swirlNumber ** 0.67))))
             self.impellerInletDiameter = self.impellerInletDiameterDimensionless * self.impellerOutletDiameter
 
-        # TODO: following 3 sections to be overwritten when blade design is looked at in more detail
+        self.impellerInletWidth = 0.5 * (self.impellerInletDiameter - self.impellerHubDiameter)
+        self.b1 = self.impellerInletWidth
 
         # Calculate inlet blade inner diameter
 
-        self.inletBladeInnerDiameter = self.impellerHubDiameter * self.inletBladeInnerDiameterHubRatio
+        self.inletBladeInnerDiameter = self.impellerHubDiameter * self.inletBladeInnerDiameterRatio
+        self.d1i = self.inletBladeInnerDiameter # Alias
 
         # Calculate inlet blade outer diameter
 
-        self.inletBladeOuterDiameter = self.impellerInletDiameter * self.inletBladeOuterDiameterEyeShroudRatio
+        self.inletBladeOuterDiameter = self.impellerInletDiameter
 
         # Calculate geometric average of diameters at impeller inlet
 
@@ -368,6 +371,12 @@ class Impeller:
         self.deviationAngle = self.beta2B - self.beta2
         self.deviationAngleDash = self.beta2B - self.beta2Dash
 
+        # Creating aliases
+
+        self.dn = self.impellerHubDiameter
+        self.d1 = self.impellerInletDiameter
+        self.d2 = self.impellerOutletDiameter
+        self.b2 = self.impellerOutletWidth
 
     def printResults(self, 
     inputs: bool = True,
@@ -641,9 +650,9 @@ class Impeller:
         plt.show()
 
 
-
+'''
 fluid = fl.Fluid(density=787, viscosity=2.86e-3, vapourPressure=4100)
-pump = Pump(suctionSpecificSpeedEU=650,
+pump = Impeller(suctionSpecificSpeedEU=650,
             suctionSidePressure=3e5,
             kgPerSec=1.32,
             headRise=295,
@@ -657,3 +666,4 @@ pump = Pump(suctionSpecificSpeedEU=650,
 pump.printResults()
 pump.plotVelocityTriangle("inlet")
 pump.plotVelocityTriangle("outlet")
+'''
