@@ -24,7 +24,7 @@ class Impeller:
     headCoefficientCorrelation: str = "Karassik",
     numberOfBlades: int = 6,
     hubShaftDiameterRatio: float = 1.5,
-    inletBladeInnerDiameterRatio: float = 1.05,
+    inletBladeInnerDiameterRatio: float = 1.15,
     headCoefficientOverride: bool = False,
     isSuctionImpeller: bool = False,
     incidenceAngle: float = 2,
@@ -43,7 +43,6 @@ class Impeller:
         self.suctionSidePressure = suctionSidePressure
         self.NPSHA = NPSHA
         self.specificSpeedEU = specificSpeedEU
-        self.nq = self.suctionSpecificSpeedEU
         self.metreCubedPerSec = metreCubedPerSec
         self.kgPerSec = kgPerSec
         self.headRise = headRise
@@ -135,6 +134,7 @@ class Impeller:
 
         self.specificSpeedDimensionless = (self.radPerSec * sqrt(self.metreCubedPerSec)) / ((constants.G * self.headRise) ** 0.75)
         self.specificSpeedEU = (self.rpm * sqrt(self.metreCubedPerSec)) / (self.headRise ** 0.75)
+        self.nq = self.specificSpeedEU # ALias
         self.specificSpeedUS = (self.rpm * sqrt(self.gallonPerMin)) / (self.headRiseFeet ** 0.75)
 
         # Estimate efficiencies
