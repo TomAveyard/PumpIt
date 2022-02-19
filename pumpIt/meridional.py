@@ -147,27 +147,3 @@ class Meridional:
         self.bladeTEHubCoords = [self.innerStreamlineXCoords[-1], self.innerStreamlineYCoords[-1]]
         self.bladeTEShroudCoords = [self.outerStreamlineXCoords[-1], self.outerStreamlineYCoords[-1]]
         
-    def plot(self, show=True, full=False, shaft=True):
-
-        ax = plt.axes()
-        ax.plot(self.outerStreamlineXCoords, self.outerStreamlineYCoords, color="black")
-        ax.plot(self.innerStreamlineXCoords, self.innerStreamlineYCoords, color="black")
-        ax.plot([self.bladeLEShroudCoords[0], self.bladeLEHubCoords[0]], [self.bladeLEShroudCoords[1], self.bladeLEHubCoords[1]], color="grey")
-        ax.plot([self.bladeTEShroudCoords[0], self.bladeTEHubCoords[0]], [self.bladeTEShroudCoords[1], self.bladeTEHubCoords[1]], color="grey")
-
-        if shaft:
-            ax.plot([self.outerStreamlineXCoords[0], self.innerStreamlineXCoords[-1]], [self.impeller.shaftDiameter/2, self.impeller.shaftDiameter/2], color="grey", ls="--")
-
-        ax.axis("equal")
-        if full:
-            ax.plot(self.outerStreamlineXCoords, -self.outerStreamlineYCoords, color="black")
-            ax.plot(self.innerStreamlineXCoords, -self.innerStreamlineYCoords, color="black")
-            ax.plot([self.bladeLEShroudCoords[0], self.bladeLEHubCoords[0]], [-self.bladeLEShroudCoords[1], -self.bladeLEHubCoords[1]], color="grey")
-            ax.plot([self.bladeTEShroudCoords[0], self.bladeTEHubCoords[0]], [-self.bladeTEShroudCoords[1], -self.bladeTEHubCoords[1]], color="grey")
-            if shaft:
-                ax.plot([self.outerStreamlineXCoords[0], self.innerStreamlineXCoords[-1]], [-self.impeller.shaftDiameter/2, -self.impeller.shaftDiameter/2], color="grey", ls="--")
-        else:
-            ax.set_ylim(ymin=0)
-
-        if show:
-            plt.show()
