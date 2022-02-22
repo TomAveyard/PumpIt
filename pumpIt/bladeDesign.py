@@ -67,12 +67,12 @@ class Blade:
         self.streamlinesYCoords.append(innerStreamlineYCoords)
 
         self.bladeDevelopmentBezier = Bezier(self.bladeDevelopmentControlPoints)
-        streamlinesBladeAngles = []
-        streamlinesDeltaMs = []
-        streamlinesDeltaUs = []
-        streamlinesDeltaLs = []
-        streamlinesDeltaZs = []
-        streamlinesDeltaRs = []
+        self.streamlinesBladeAngles = []
+        self.streamlinesDeltaMs = []
+        self.streamlinesDeltaUs = []
+        self.streamlinesDeltaLs = []
+        self.streamlinesDeltaZs = []
+        self.streamlinesDeltaRs = []
 
         tIncrement = 1 / self.meridionalSection.numberOfPoints
         t = 0
@@ -116,35 +116,9 @@ class Blade:
                 deltaZs.append(deltaZj)
                 deltaRs.append(deltaRj)
 
-            streamlinesBladeAngles.append(bladeAngles)
-            streamlinesDeltaMs.append(deltaMs)
-            streamlinesDeltaUs.append(deltaUs)
-            streamlinesDeltaLs.append(deltaLs)
-            streamlinesDeltaZs.append(deltaZs)
-            streamlinesDeltaRs.append(deltaRs)
-
-        ax = plt.axes(projection='polar')
-        colors = ['black', 'pink', 'blue', 'orange', 'green', 'grey', 'red', 'purple']
-
-        for blade in range(1):
-
-            for i in range(len(streamlinesBladeAngles)):
-
-                epsilonsch = blade * (360 / self.meridionalSection.impeller.numberOfBlades)
-
-                r = self.streamlinesYCoords[i][-1]
-                rs = [r]
-                epsilonschs = [epsilonsch]
-                epsilonschsRadians = [radians(epsilonsch)]
-
-                for j in range(len(streamlinesDeltaRs[i])):
-                    r -= streamlinesDeltaRs[i][j]
-                    rs.append(r)
-                    deltaEpsilonsch = 360 * streamlinesDeltaUs[i][j] / (2 * pi * r)
-                    epsilonsch += deltaEpsilonsch
-                    epsilonschs.append(epsilonsch)
-                    epsilonschsRadians.append(radians(epsilonsch))
-
-                ax.plot(epsilonschsRadians, rs, color=colors[blade])
-            
-        plt.show()
+            self.streamlinesBladeAngles.append(bladeAngles)
+            self.streamlinesDeltaMs.append(deltaMs)
+            self.streamlinesDeltaUs.append(deltaUs)
+            self.streamlinesDeltaLs.append(deltaLs)
+            self.streamlinesDeltaZs.append(deltaZs)
+            self.streamlinesDeltaRs.append(deltaRs)
