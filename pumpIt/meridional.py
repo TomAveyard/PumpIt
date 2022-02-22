@@ -44,7 +44,7 @@ class Meridional:
         # Coords for circular section
         arcLength = (self.outerstreamlineCircularSectionArcAngle / 360) * 2 * pi * self.outerStreamlineRadiusOfCurvature
         arcEndCoords = [self.g1 + self.outerStreamlineRadiusOfCurvature * cos(radians(self.outerstreamlineCircularSectionArcAngle)), (self.impeller.impellerInletDiameter / 2) + (self.outerStreamlineRadiusOfCurvature * (1 - sin(radians(self.outerstreamlineCircularSectionArcAngle))))]
-        outerStreamlineEndCoords = [self.ZE, self.impeller.impellerOutletDiameter]
+        outerStreamlineEndCoords = [self.ZE, self.impeller.impellerOutletDiameter/2]
         # Generate radial section bezier
         self.controlPoints.append(arcEndCoords)
         if numberOuterStreamlineControlPoints == 1:

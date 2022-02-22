@@ -21,7 +21,7 @@ class Impeller:
     axialThrustBalanceHoles: bool = False,
     shaftAllowableShearStress: float = None,
     shaftDiameterSafetyFactor: float = 1.1,
-    headCoefficientCorrelation: str = "Karassik",
+    headCoefficientCorrelation: str = "gulich",
     numberOfBlades: int = 6,
     hubShaftDiameterRatio: float = 1.5,
     inletBladeInnerDiameterRatio: float = 1.15,
@@ -246,7 +246,7 @@ class Impeller:
 
             impellerInletDiameterPrev = self.impellerInletDiameter
 
-            self.u1 = (self.impellerInletDiameter / 2) * self.radPerSec
+            self.u1 = (self.impellerInletDiameter * pi * self.rpm) / 60
             self.c1m = (4 * self.impellerVolumeFlowRate) / (pi * ((self.impellerInletDiameter ** 2) - (self.impellerHubDiameter ** 2)))
             self.swirlNumber = 1 - (self.c1m / (self.u1 * tan(radians(self.approachFlowAngle))))
 
@@ -318,7 +318,7 @@ class Impeller:
 
         if self.outletWidthOverride == None:
             specificSpeedEURef = 100
-            self.impellerOutletWidthDimensionless = 0.017 + (0.0262 * (self.specificSpeedEU / specificSpeedEURef)) - (0.08 * ((self.specificSpeedEU / specificSpeedEURef) ** 2)) + (0.0093 * ((self.specificSpeedEU / specificSpeedEURef) ** 3))
+            self.impellerOutletWidthDimensionless = 0.017 + (0.262 * (self.specificSpeedEU / specificSpeedEURef)) - (0.08 * ((self.specificSpeedEU / specificSpeedEURef) ** 2)) + (0.0093 * ((self.specificSpeedEU / specificSpeedEURef) ** 3))
             self.impellerOutletWidth = self.impellerOutletWidthDimensionless * self.impellerOutletDiameter
         else:
             self.impellerOutletWidth = self.outletWidthOverride

@@ -20,7 +20,7 @@ class Pump:
         ax.plot([self.meridional.bladeTEShroudCoords[0], self.meridional.bladeTEHubCoords[0]], [self.meridional.bladeTEShroudCoords[1], self.meridional.bladeTEHubCoords[1]], color="grey")
 
         if internalStreamlines:
-            for i in range(len(self.blade.streamlinesXCoords)):
+            for i in range(1, len(self.blade.streamlinesXCoords)-1):
                 ax.plot(self.blade.streamlinesXCoords[i], self.blade.streamlinesYCoords[i], color='grey', ls='--', alpha=0.5, lw=0.5)
 
         if shaft:
@@ -35,7 +35,7 @@ class Pump:
             if shaft:
                 ax.plot([self.meridional.outerStreamlineXCoords[0], self.meridional.innerStreamlineXCoords[-1]], [-self.impeller.shaftDiameter/2, -self.impeller.shaftDiameter/2], color="grey", ls="dashdot")
             if internalStreamlines:
-                for i in range(len(self.blade.streamlinesXCoords)):
+                for i in range(1, len(self.blade.streamlinesXCoords)-1):
                     ax.plot(self.blade.streamlinesXCoords[i], -self.blade.streamlinesYCoords[i], color='grey', ls='--', alpha=0.5, lw=0.5)
         else:
             ax.set_ylim(ymin=0)
