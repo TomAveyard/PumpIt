@@ -84,6 +84,7 @@ class Blade:
             ts.append(t)
             t += tIncrement
 
+        # Finds various deltas to achieve blade angle development
         for i in range(len(self.streamlinesXCoords)):
             
             xCoords = self.streamlinesXCoords[i]
@@ -176,11 +177,12 @@ class Blade:
                 self.streamlinesYCoords[i]
             ]
 
+            # Finds index at which blade LE intersect each streamline
             intersectionCoords, intersectionIdx = findIntersectionOfCoords(streamlineLine, LECoords, method="nearest", side="right", n=10000, returnIndex=True)
-
             self.streamlinesLEIntersectionIdxs.append(intersectionIdx)
             self.streamlineLEIntersectionCoords.append(intersectionCoords)
 
+        # New coords lists for the blade coords
         self.bladesEpsilonSchs = []
         self.bladesEpsilonSchsRadians = []
         self.bladesRadiuses = []
