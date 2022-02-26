@@ -2,7 +2,7 @@ import sys
 from meridional import Meridional
 from math import cos, atan2, degrees, radians, sqrt, tan, pi
 from plottingHelper import Bezier
-import matplotlib.pyplot as plt
+from plottingHelper import findIntersectionOfCoords
 
 class Blade:
 
@@ -135,6 +135,8 @@ class Blade:
         self.streamlinesEpsilonSchsRadians = []
         self.streamlinesRadiuses = []
 
+        # Find the coords of the streamlines in the plan view for a single blade using the deltas
+        # Done for one blade, coords for other blades can be found by adding on a degree rotation to the coords for the one blade
         for i in range(len(self.streamlinesBladeAngles)):
 
             epsilonsch = 0
@@ -156,3 +158,36 @@ class Blade:
             self.streamlinesEpsilonSchs.append(epsilonschs)
             self.streamlinesEpsilonSchsRadians.append(epsilonschsRadians)
             self.streamlinesRadiuses.append(rs)
+
+        # Find indexes for each streamline where the streamline intersects the LE of the blade
+
+        self.streamlinesLEIntersectionIdxs = []
+        self.streamlineLEIntersectionCoords = []
+
+        LECoords = [
+            [self.meridionalSection.bladeLEShroudCoords[0], self.meridionalSection.bladeLEHubCoords[0]],
+            [self.meridionalSection.bladeLEShroudCoords[1], self.meridionalSection.bladeLEHubCoords[1]]
+        ]
+
+        for i in range(len(self.streamlinesXCoords)):
+
+            streamlineLine = [
+                self.streamlinesXCoords[i],
+                self.streamlinesYCoords[i]
+            ]
+
+            intersectionCoords, intersectionIdx = findIntersectionOfCoords(streamlineLine, LECoords, method="nearest", side="right", n=10000, returnIndex=True)
+
+            self.streamlinesLEIntersectionIdxs.append(intersectionIdx)
+            self.streamlineLEIntersectionCoords.append(intersectionCoords)
+
+        self.bladesEpsilonSchs = []
+        self.bladesEpsilonSchsRadians = []
+        self.bladesRadiuses = []
+
+        for i in range(len(self.streamlinesEpsilonSchs)):
+
+            self.bladesEpsilonSchs.append(self.streamlinesEpsilonSchs[i][0:-intersectionIdx])
+            self.bladesEpsilonSchsRadians.append(self.streamlinesEpsilonSchsRadians[i][0:-intersectionIdx])
+            self.bladesRadiuses.append(self.streamlinesRadiuses[i][0:-intersectionIdx])
+

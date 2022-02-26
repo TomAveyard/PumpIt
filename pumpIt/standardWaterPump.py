@@ -24,4 +24,4 @@ bladeDesign = Blade(meridionalSection, 3)
 
 pump = Pump(impeller, meridionalSection, bladeDesign)
 pump.plotMeridional()
-pump.plotBladesPlanView()
+pump.plotPlanView()

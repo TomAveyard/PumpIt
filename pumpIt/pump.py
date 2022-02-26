@@ -119,7 +119,7 @@ class Pump:
 
         plt.show()
     
-    def plotBladesPlanView(self, numberOfBlades=1):
+    def plotPlanView(self, numberOfBlades=1, plotType="blades"):
 
         if type(numberOfBlades) == str:
             if numberOfBlades.lower() == "all":
@@ -132,15 +132,29 @@ class Pump:
 
             bladeRotation = blade * (2 * pi / self.impeller.numberOfBlades)
 
-            for i in range(len(self.blade.streamlinesEpsilonSchsRadians)):
+            if plotType.lower() == "streamlines" or plotType.lower() == "streamline":
 
-                epsilonschsRadians = []
+                for i in range(len(self.blade.streamlinesEpsilonSchsRadians)):
 
-                for j in range(len(self.blade.streamlinesEpsilonSchsRadians[i])):
+                    epsilonschsRadians = []
 
-                    epsilonschsRadians.append(self.blade.streamlinesEpsilonSchsRadians[i][j] + bladeRotation)
+                    for j in range(len(self.blade.streamlinesEpsilonSchsRadians[i])):
 
-                ax.plot(epsilonschsRadians, self.blade.streamlinesRadiuses[i], color=colors[blade])
+                        epsilonschsRadians.append(self.blade.streamlinesEpsilonSchsRadians[i][j] + bladeRotation)
+
+                    ax.plot(epsilonschsRadians, self.blade.streamlinesRadiuses[i], color=colors[blade])
+
+            elif plotType.lower() == "blades" or plotType.lower() == "blade":
+
+                for i in range(len(self.blade.bladesEpsilonSchsRadians)):
+
+                    epsilonschsRadians = []
+
+                    for j in range(len(self.blade.bladesEpsilonSchsRadians[i])):
+
+                        epsilonschsRadians.append(self.blade.bladesEpsilonSchsRadians[i][j] + bladeRotation)
+
+                    ax.plot(epsilonschsRadians, self.blade.bladesRadiuses[i], color=colors[blade])
             
         plt.show()
     

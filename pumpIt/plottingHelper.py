@@ -69,7 +69,7 @@ def cosineRuleAngle(a, b, c):
 
     return degrees(acos((a ** 2 + b ** 2 - c ** 2) / (2 * a * b)))
 
-def nearestPointIntersection(line1, line2, method="interpolate", side="left", returnIndex=False, n=10000):
+def findIntersectionOfCoords(line1, line2, method="interpolate", side="left", returnIndex=False, n=10000):
 
     if type(line1) == list:
         line1 = np.array(line1)
