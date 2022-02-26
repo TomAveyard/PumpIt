@@ -119,7 +119,7 @@ class Pump:
 
         plt.show()
     
-    def plotBladesPlanView(self, numberOfBlades = 1):
+    def plotBladesPlanView(self, numberOfBlades=1):
 
         if type(numberOfBlades) == str:
             if numberOfBlades.lower() == "all":
@@ -130,24 +130,17 @@ class Pump:
 
         for blade in range(numberOfBlades):
 
-            for i in range(len(self.blade.streamlinesBladeAngles)):
+            bladeRotation = blade * (2 * pi / self.impeller.numberOfBlades)
 
-                epsilonsch = blade * (360 / self.impeller.numberOfBlades)
+            for i in range(len(self.blade.streamlinesEpsilonSchsRadians)):
 
-                r = self.blade.streamlinesYCoords[i][-1]
-                rs = [r]
-                epsilonschs = [epsilonsch]
-                epsilonschsRadians = [radians(epsilonsch)]
+                epsilonschsRadians = []
 
-                for j in range(len(self.blade.streamlinesDeltaRs[i])):
-                    r -= self.blade.streamlinesDeltaRs[i][j]
-                    rs.append(r)
-                    deltaEpsilonsch = 360 * self.blade.streamlinesDeltaUs[i][j] / (2 * pi * r)
-                    epsilonsch += deltaEpsilonsch
-                    epsilonschs.append(epsilonsch)
-                    epsilonschsRadians.append(radians(epsilonsch))
+                for j in range(len(self.blade.streamlinesEpsilonSchsRadians[i])):
 
-                ax.plot(epsilonschsRadians, rs, color=colors[blade])
+                    epsilonschsRadians.append(self.blade.streamlinesEpsilonSchsRadians[i][j] + bladeRotation)
+
+                ax.plot(epsilonschsRadians, self.blade.streamlinesRadiuses[i], color=colors[blade])
             
         plt.show()
     

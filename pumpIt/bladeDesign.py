@@ -130,3 +130,29 @@ class Blade:
             self.streamlinesDeltaLs.append(deltaLs)
             self.streamlinesDeltaZs.append(deltaZs)
             self.streamlinesDeltaRs.append(deltaRs)
+
+        self.streamlinesEpsilonSchs = []
+        self.streamlinesEpsilonSchsRadians = []
+        self.streamlinesRadiuses = []
+
+        for i in range(len(self.streamlinesBladeAngles)):
+
+            epsilonsch = 0
+
+            r = self.streamlinesYCoords[i][-1]
+            rs = [r]
+            epsilonschs = [epsilonsch]
+            epsilonschsRadians = [radians(epsilonsch)]
+
+            for j in range(len(self.streamlinesDeltaRs[i])):
+
+                r -= self.streamlinesDeltaRs[i][j]
+                rs.append(r)
+                deltaEpsilonsch = 360 * self.streamlinesDeltaUs[i][j] / (2 * pi * r)
+                epsilonsch += deltaEpsilonsch
+                epsilonschs.append(epsilonsch)
+                epsilonschsRadians.append(radians(epsilonsch))
+
+            self.streamlinesEpsilonSchs.append(epsilonschs)
+            self.streamlinesEpsilonSchsRadians.append(epsilonschsRadians)
+            self.streamlinesRadiuses.append(rs)
