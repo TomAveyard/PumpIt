@@ -2,6 +2,7 @@ import numpy as np
 from math import sin, cos, radians, degrees, sqrt, atan2, tan, atan, acos
 import matplotlib.pyplot as plt
 import sys
+from scipy.interpolate import interp1d
 
 def plotStraightLine(startCoords: tuple, endCoords: tuple, numberOfPoints: int):
 
@@ -67,6 +68,43 @@ def lengthBetween2Points(point1, point2):
 def cosineRuleAngle(a, b, c):
 
     return degrees(acos((a ** 2 + b ** 2 - c ** 2) / (2 * a * b)))
+
+def nearestPointIntersection(line1, line2, method="interpolate", side="left", returnIndex=False, n=10000):
+
+    if type(line1) == list:
+        line1 = np.array(line1)
+    if type(line2) == list:
+        line2 = np.array(line2)
+
+    f1 = interp1d(line1[0], line1[1], kind='linear')
+    f2 = interp1d(line2[0], line2[1], kind='linear')
+
+    xx = np.linspace(max(line1[0][0],  line2[0][0]), min(line1[0][-1], line2[0][-1]), n)
+
+    line1Interp = f1(xx)
+    line2Interp = f2(xx)
+    
+    idxInterp = np.argwhere(np.diff(np.sign(line1Interp - line2Interp))).flatten()
+    
+    if method.lower() == "interpolate" or method.lower() == "interp":
+
+        if returnIndex:
+            return (line1Interp[idxInterp][0], xx[idxInterp][0]), idxInterp
+        else:
+            return (line1Interp[idxInterp][0], xx[idxInterp][0])
+
+    elif method.lower() == "nearest" or method.lower() == "nearest point":
+
+        idx = np.searchsorted(line1[1], line1Interp[idxInterp][0])
+
+        if side.lower() != "right":
+
+            idx -= 1
+
+        if returnIndex:
+            return (line1[0][idx], line1[1][idx]), idx
+        else:
+            return (line1[0][idx], line1[1][idx])
 
 # Generates a bezier curve given a list of control point coordinates
 class Bezier:

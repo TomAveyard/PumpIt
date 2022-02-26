@@ -19,9 +19,9 @@ impeller = Impeller(rpm=1450,
             isSuctionImpeller=True,
             headCoefficientCorrelation="gulich"
 )
-meridionalSection = Meridional(impeller, outerStreamlineCircularSectionArcLength=35)
+meridionalSection = Meridional(impeller, outerStreamlineCircularSectionArcLength=35, outerStreamlineOutletAngle=20, innerStreamlineOutletAngle=10)
 bladeDesign = Blade(meridionalSection, 3)
 
 pump = Pump(impeller, meridionalSection, bladeDesign)
-print(impeller.impellerOutletDiameter*1000)
 pump.plotMeridional()
+pump.plotBladesPlanView()

@@ -67,6 +67,9 @@ class Blade:
         self.streamlinesYCoords.append(innerStreamlineYCoords)
 
         self.bladeDevelopmentBezier = Bezier(self.bladeDevelopmentControlPoints)
+        self.streamlineMeridionalLengths = []
+        self.streamlineCircumferentialLengths = []
+        self.streamlineTotalLengths = []
         self.streamlinesBladeAngles = []
         self.streamlinesDeltaMs = []
         self.streamlinesDeltaUs = []
@@ -86,18 +89,15 @@ class Blade:
             xCoords = self.streamlinesXCoords[i]
             yCoords = self.streamlinesYCoords[i]
 
-            streamlineMeridionalLength = 0
-
-            for j in range(1, self.meridionalSection.numberOfPoints):
-
-                streamlineMeridionalLength += sqrt(((xCoords[j] - xCoords[j-1]) ** 2) + ((yCoords[j] - yCoords[j-1]) ** 2))
-
             bladeAngles = []
             deltaMs = []
             deltaUs = []
             deltaLs = []
             deltaZs = []
             deltaRs = []
+            streamlineMeridionalLength = 0
+            streamlineCircumferentialLength = 0
+            streamlineTotalLength = 0
 
             for j in range(self.meridionalSection.numberOfPoints-2, 0, -1):
                 
@@ -105,7 +105,7 @@ class Blade:
                 bladeAngles.append(bladeAnglej)
 
                 deltaMj = sqrt(((xCoords[j] - xCoords[j+1]) ** 2) + ((yCoords[j] - yCoords[j+1]) ** 2))
-                deltaUj = deltaMj / tan(radians(bladeAnglej))
+                deltaUj = -deltaMj / tan(radians(bladeAnglej))
                 deltaLj = sqrt(deltaMj ** 2 + deltaUj ** 2)
                 deltaZj = xCoords[j] - xCoords[j+1]
                 deltaRj = sqrt(deltaMj ** 2 - deltaZj ** 2)
@@ -115,6 +115,14 @@ class Blade:
                 deltaLs.append(deltaLj)
                 deltaZs.append(deltaZj)
                 deltaRs.append(deltaRj)
+
+                streamlineMeridionalLength += deltaMj
+                streamlineCircumferentialLength += deltaUj
+                streamlineTotalLength += deltaLj
+
+            self.streamlineMeridionalLengths.append(streamlineMeridionalLength)
+            self.streamlineCircumferentialLengths.append(streamlineCircumferentialLength)
+            self.streamlineTotalLengths.append(streamlineTotalLength)
 
             self.streamlinesBladeAngles.append(bladeAngles)
             self.streamlinesDeltaMs.append(deltaMs)
