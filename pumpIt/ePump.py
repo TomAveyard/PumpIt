@@ -20,5 +20,6 @@ meridionalSection = Meridional(impeller)
 bladeDesign = Blade(meridionalSection, 3)
 
 pump = Pump(impeller, meridionalSection, bladeDesign)
-pump.plotMeridional()
-pump.plotPlanView(plotType="blades")
+#pump.plotMeridional()
+#pump.plotPlanView(plotType="blades", numberOfBlades=6)
+pump.plotResult()

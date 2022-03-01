@@ -13,9 +13,11 @@ class Pump:
         self.meridional = meridional
         self.blade = blade
 
-    def plotMeridional(self, show=True, full=False, shaft=True, internalStreamlines=True):
-
-        ax = plt.axes()
+    def plotMeridional(self, show=True, full=False, shaft=True, internalStreamlines=True, ax=None):
+        
+        if not ax:
+            ax = plt.axes()
+        
         ax.plot(self.meridional.outerStreamlineXCoords, self.meridional.outerStreamlineYCoords, color="black")
         ax.plot(self.meridional.innerStreamlineXCoords, self.meridional.innerStreamlineYCoords, color="black")
         ax.plot([self.meridional.bladeLEShroudCoords[0], self.meridional.bladeLEHubCoords[0]], [self.meridional.bladeLEShroudCoords[1], self.meridional.bladeLEHubCoords[1]], color="grey")
@@ -45,7 +47,7 @@ class Pump:
         if show:
             plt.show()
 
-    def plotVelocityTriangle(self, area: str, withBlockage: bool = True, withoutBlockage: bool = True, decimalPoints: int = 2):
+    def plotVelocityTriangle(self, area: str, withBlockage: bool = True, withoutBlockage: bool = True, decimalPoints: int = 2, show=True, ax=None):
 
         if area.lower() == "inlet":
             title = "Inlet"
@@ -84,7 +86,8 @@ class Pump:
         lineClashOffset = 0.1
         padding = 1
 
-        ax = plt.axes()
+        if not ax:
+            ax = plt.axes()
 
         # Impeller velocity
         ax.arrow(u, 0, -u, 0, head_width=hw, head_length=hl, length_includes_head=True, edgecolor="orange", facecolor="orange", label="U: " + str(round(u, 2)) + " [m/s]")
@@ -117,22 +120,30 @@ class Pump:
 
         plt.gca().set_ylim(bottom=-standardOffset - padding)
 
-        plt.show()
+        if show:
+            plt.show()
     
-    def plotPlanView(self, numberOfBlades=1, plotType="blades"):
+    def plotPlanView(self, plotType="polar", numberOfBlades=1, bladesOrStreamlines="blades", color="black", plotLE=True, show=True, ax=None):
 
         if type(numberOfBlades) == str:
             if numberOfBlades.lower() == "all":
                 numberOfBlades = self.impeller.numberOfBlades
         
-        ax = plt.axes(projection='polar')
+        if not ax:
+            ax = plt.axes(projection='polar')
+        
         colors = ['black', 'pink', 'blue', 'orange', 'green', 'grey', 'red', 'purple']
 
         for blade in range(numberOfBlades):
 
+            if color.lower() == "multi":
+                c = colors[blade]
+            else:
+                c = color
+
             bladeRotation = blade * (2 * pi / self.impeller.numberOfBlades)
 
-            if plotType.lower() == "streamlines" or plotType.lower() == "streamline":
+            if bladesOrStreamlines.lower() == "streamlines" or bladesOrStreamlines.lower() == "streamline":
 
                 for i in range(len(self.blade.streamlinesEpsilonSchsRadians)):
 
@@ -142,9 +153,9 @@ class Pump:
 
                         epsilonschsRadians.append(self.blade.streamlinesEpsilonSchsRadians[i][j] + bladeRotation)
 
-                    ax.plot(epsilonschsRadians, self.blade.streamlinesRadiuses[i], color=colors[blade])
+                    ax.plot(epsilonschsRadians, self.blade.streamlinesRadiuses[i], color=c)
 
-            elif plotType.lower() == "blades" or plotType.lower() == "blade":
+            elif bladesOrStreamlines.lower() == "blades" or bladesOrStreamlines.lower() == "blade":
 
                 for i in range(len(self.blade.bladesEpsilonSchsRadians)):
 
@@ -154,9 +165,33 @@ class Pump:
 
                         epsilonschsRadians.append(self.blade.bladesEpsilonSchsRadians[i][j] + bladeRotation)
 
-                    ax.plot(epsilonschsRadians, self.blade.bladesRadiuses[i], color=colors[blade])
-            
+                    ax.plot(epsilonschsRadians, self.blade.bladesRadiuses[i], color=c)
+
+            if plotLE:
+
+                LEEpsilonRadians = []
+
+                for i in range(len(self.blade.bladeLEEpsilonsRadians)):
+
+                    LEEpsilonRadians.append(self.blade.bladeLEEpsilonsRadians[i] + bladeRotation)
+
+                ax.plot(LEEpsilonRadians, self.blade.bladeLERadiuses, color=c)
+        
+        if show:
+            plt.show()
+
+    def plotResult(self):
+
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2,2)
+
+        self.plotVelocityTriangle(area="inlet", ax=ax1, show=False)
+        self.plotVelocityTriangle(area="outlet", ax=ax2, show=False)
+        self.plotMeridional(show=False, ax=ax3)
+        self.plotPlanView(show=False, ax=ax4)
+
         plt.show()
+
+        
     
     def printImpellerResults(self, 
     inputs: bool = True,

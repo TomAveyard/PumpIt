@@ -193,3 +193,12 @@ class Blade:
             self.bladesEpsilonSchsRadians.append(self.streamlinesEpsilonSchsRadians[i][0:-intersectionIdx])
             self.bladesRadiuses.append(self.streamlinesRadiuses[i][0:-intersectionIdx])
 
+        # Gets coords of LE in plan view
+        self.bladeLEEpsilons = []
+        self.bladeLEEpsilonsRadians = []
+        self.bladeLERadiuses = []
+        for i in range(len(self.bladesEpsilonSchs)):
+            self.bladeLEEpsilons.append(self.bladesEpsilonSchs[i][-1])
+            self.bladeLEEpsilonsRadians.append(self.bladesEpsilonSchsRadians[i][-1])
+            self.bladeLERadiuses.append(self.bladesRadiuses[i][-1])
+
