@@ -1,8 +1,7 @@
 import sys
 from meridional import Meridional
 from math import cos, atan2, degrees, radians, sqrt, tan, pi
-from plottingHelper import Bezier
-from plottingHelper import findIntersectionOfCoords
+from plottingHelper import Bezier, findIntersectionOfCoords, polarToCartesian
 
 class Blade:
 
@@ -12,59 +11,59 @@ class Blade:
         self.numberOfStreamlines = numberOfStreamlines
         self.bladeDevelopmentControlPoints = bladeDevelopmentControlPoints
 
-        outerStreamlineXCoords = self.meridionalSection.outerStreamlineXCoords
-        outerStreamlineYCoords = self.meridionalSection.outerStreamlineYCoords
-        innerStreamlineXCoords = self.meridionalSection.innerStreamlineXCoords
-        innerStreamlineYCoords = self.meridionalSection.innerStreamlineYCoords
+        outerStreamlineMeridionalXCoords = self.meridionalSection.outerStreamlineXCoords
+        outerStreamlineMeridionalYCoords = self.meridionalSection.outerStreamlineYCoords
+        innerStreamlineMeridionalXCoords = self.meridionalSection.innerStreamlineXCoords
+        innerStreamlineMeridionalYCoords = self.meridionalSection.innerStreamlineYCoords
         
         if self.bladeDevelopmentControlPoints[0] != [0,0] or bladeDevelopmentControlPoints[-1] != [1,1]:
 
             sys.exit("Error: First and last blade development control points are required to be [0,0] and [1,1] respectively")
 
         # Initialise lists to hold coords for each streamline
-        self.streamlinesXCoords = []
-        self.streamlinesYCoords = []
+        self.streamlinesMeridionalXCoords = []
+        self.streamlinesMeridionalYCoords = []
         # Append on the number of lists required
         for i in range(self.numberOfStreamlines):
-            self.streamlinesXCoords.append([])
-            self.streamlinesYCoords.append([])
+            self.streamlinesMeridionalXCoords.append([])
+            self.streamlinesMeridionalYCoords.append([])
 
         i = 0
         while i < self.meridionalSection.numberOfPoints:
             
             # Calculate inner to outer streamline geometry
-            deltax = abs(innerStreamlineXCoords[i] - outerStreamlineXCoords[i])
-            deltay = abs(outerStreamlineYCoords[i] - innerStreamlineYCoords[i])
+            deltax = abs(innerStreamlineMeridionalXCoords[i] - outerStreamlineMeridionalXCoords[i])
+            deltay = abs(outerStreamlineMeridionalYCoords[i] - innerStreamlineMeridionalYCoords[i])
             theta = degrees(atan2(deltax, deltay))
             b = sqrt((deltax ** 2) + (deltay ** 2))
             
-            streamlinesY = [outerStreamlineYCoords[i]]
-            streamlinesX = [outerStreamlineXCoords[i]]
+            streamlinesY = [outerStreamlineMeridionalYCoords[i]]
+            streamlinesX = [outerStreamlineMeridionalXCoords[i]]
             streamTubeWidths = []
 
             for j in range(1, self.numberOfStreamlines + 1):
                 
                 # Calculate coords for each streamline so that each streamtube formed by the streamlines has an equal amount of flow through it
                 # Meridional velocity cm is assumed constant
-                streamlinesY.append(sqrt((streamlinesY[j-1] ** 2) - ((b * cos(radians(theta)) *  (outerStreamlineYCoords[i] + innerStreamlineYCoords[i])) / (self.numberOfStreamlines + 1))))
+                streamlinesY.append(sqrt((streamlinesY[j-1] ** 2) - ((b * cos(radians(theta)) *  (outerStreamlineMeridionalYCoords[i] + innerStreamlineMeridionalYCoords[i])) / (self.numberOfStreamlines + 1))))
                 streamlinesX.append(streamlinesX[j-1] + (abs(streamlinesY[j-1] - streamlinesY[j])) * tan(radians(theta)))
             
-            streamlinesY.append(innerStreamlineYCoords[i])
+            streamlinesY.append(innerStreamlineMeridionalYCoords[i])
 
             for j in range(1, len(streamlinesY)-1):
 
                 width = sqrt(((streamlinesX[j] - streamlinesX[j-1]) ** 2) + ((streamlinesY[j-1] - streamlinesY[j]) ** 2))
                 streamTubeWidths.append(width)
 
-                self.streamlinesXCoords[j-1].append(streamlinesX[j])
-                self.streamlinesYCoords[j-1].append(streamlinesY[j])
+                self.streamlinesMeridionalXCoords[j-1].append(streamlinesX[j])
+                self.streamlinesMeridionalYCoords[j-1].append(streamlinesY[j])
 
             i+=1
 
-        self.streamlinesXCoords.insert(0, outerStreamlineXCoords)
-        self.streamlinesYCoords.insert(0, outerStreamlineYCoords)
-        self.streamlinesXCoords.append(innerStreamlineXCoords)
-        self.streamlinesYCoords.append(innerStreamlineYCoords)
+        self.streamlinesMeridionalXCoords.insert(0, outerStreamlineMeridionalXCoords)
+        self.streamlinesMeridionalYCoords.insert(0, outerStreamlineMeridionalYCoords)
+        self.streamlinesMeridionalXCoords.append(innerStreamlineMeridionalXCoords)
+        self.streamlinesMeridionalYCoords.append(innerStreamlineMeridionalYCoords)
 
         self.bladeDevelopmentBezier = Bezier(self.bladeDevelopmentControlPoints)
         self.streamlineMeridionalLengths = []
@@ -85,10 +84,10 @@ class Blade:
             t += tIncrement
 
         # Finds various deltas to achieve blade angle development
-        for i in range(len(self.streamlinesXCoords)):
+        for i in range(len(self.streamlinesMeridionalXCoords)):
             
-            xCoords = self.streamlinesXCoords[i]
-            yCoords = self.streamlinesYCoords[i]
+            xCoords = self.streamlinesMeridionalXCoords[i]
+            yCoords = self.streamlinesMeridionalYCoords[i]
 
             bladeAngles = []
             deltaMs = []
@@ -142,7 +141,7 @@ class Blade:
 
             epsilonsch = 0
 
-            r = self.streamlinesYCoords[i][-1]
+            r = self.streamlinesMeridionalYCoords[i][-1]
             rs = [r]
             epsilonschs = [epsilonsch]
             epsilonschsRadians = [radians(epsilonsch)]
@@ -170,11 +169,11 @@ class Blade:
             [self.meridionalSection.bladeLEShroudCoords[1], self.meridionalSection.bladeLEHubCoords[1]]
         ]
 
-        for i in range(len(self.streamlinesXCoords)):
+        for i in range(len(self.streamlinesMeridionalXCoords)):
 
             streamlineLine = [
-                self.streamlinesXCoords[i],
-                self.streamlinesYCoords[i]
+                self.streamlinesMeridionalXCoords[i],
+                self.streamlinesMeridionalYCoords[i]
             ]
 
             # Finds index at which blade LE intersect each streamline
@@ -202,3 +201,32 @@ class Blade:
             self.bladeLEEpsilonsRadians.append(self.bladesEpsilonSchsRadians[i][-1])
             self.bladeLERadiuses.append(self.bladesRadiuses[i][-1])
 
+        # Get streamline coords in cartesian coordinates
+        self.streamlinesXCoords = []
+        self.streamlinesYCoords = []
+        for i in range(len(self.streamlinesEpsilonSchs)):
+            self.streamlinesXCoords.append([])
+            self.streamlinesYCoords.append([])
+            for j in range(len(self.streamlinesEpsilonSchs[i])):
+                coords = polarToCartesian(self.streamlinesRadiuses[i][j], self.streamlinesEpsilonSchs[i][j])
+                self.streamlinesXCoords[i].append(coords[0])
+                self.streamlinesYCoords[i].append(coords[1])
+
+        # Get blade coords in cartesian coordinates
+        self.bladesXCoords = []
+        self.bladesYCoords = []
+        for i in range(len(self.bladesEpsilonSchs)):
+            self.bladesXCoords.append([])
+            self.bladesYCoords.append([])
+            for j in range(len(self.bladesEpsilonSchs[i])):
+                coords = polarToCartesian(self.bladesRadiuses[i][j], self.bladesEpsilonSchs[i][j])
+                self.bladesXCoords[i].append(coords[0])
+                self.bladesYCoords[i].append(coords[1])
+
+        # Get blade LE coords in cartesian coordinates
+        self.bladeLEXCoords = []
+        self.bladeLEYCoords = []
+        for i in range(len(self.bladeLEEpsilons)):
+            coords = polarToCartesian(self.bladeLERadiuses[i], self.bladeLEEpsilons[i])
+            self.bladeLEXCoords.append(coords[0])
+            self.bladeLEYCoords.append(coords[1])

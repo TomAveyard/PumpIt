@@ -1,5 +1,5 @@
 import numpy as np
-from math import sin, cos, radians, degrees, sqrt, atan2, tan, atan, acos
+from math import sin, cos, radians, degrees, sqrt, atan2, tan, atan, acos, atan2
 import matplotlib.pyplot as plt
 import sys
 from scipy.interpolate import interp1d
@@ -105,6 +105,29 @@ def findIntersectionOfCoords(line1, line2, method="interpolate", side="left", re
             return (line1[0][idx], line1[1][idx]), idx
         else:
             return (line1[0][idx], line1[1][idx])
+
+def polarToCartesian(r, theta):
+
+    x = r * cos(radians(theta))
+    y = r * sin(radians(theta))
+
+    return [x, y]
+
+def cartesianToPolar(x, y):
+
+    r = sqrt(x**2 + y**2)
+    theta = degrees(atan2(y, x))
+
+    return [r, theta]
+
+def rotateCartesianCoord(x, y, rotation, origin=[0,0]):
+
+    polarCoords = cartesianToPolar(x-origin[0], y-origin[1])
+    rotatedCartesianCoords = polarToCartesian(polarCoords[0], polarCoords[1] + rotation)
+    rotatedCartesianCoords[0] += origin[0]
+    rotatedCartesianCoords[1] += origin[1]
+
+    return rotatedCartesianCoords
 
 # Generates a bezier curve given a list of control point coordinates
 class Bezier:

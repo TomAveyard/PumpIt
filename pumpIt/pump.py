@@ -1,9 +1,10 @@
-from numpy import number
 from impeller import Impeller
 from meridional import Meridional
 from bladeDesign import Blade
 import matplotlib.pyplot as plt
-from math import tan, radians, pi
+import matplotlib
+from math import tan, radians, pi, degrees
+from plottingHelper import rotateCartesianCoord
 
 class Pump:
 
@@ -25,12 +26,16 @@ class Pump:
 
         if internalStreamlines:
             for i in range(1, len(self.blade.streamlinesXCoords)-1):
-                ax.plot(self.blade.streamlinesXCoords[i], self.blade.streamlinesYCoords[i], color='grey', ls='--', alpha=0.5, lw=0.5)
+                ax.plot(self.blade.streamlinesMeridionalXCoords[i], self.blade.streamlinesMeridionalYCoords[i], color='grey', ls='--', alpha=0.5, lw=0.5)
 
         if shaft:
             ax.plot([self.meridional.outerStreamlineXCoords[0], self.meridional.innerStreamlineXCoords[-1]], [self.impeller.shaftDiameter/2, self.impeller.shaftDiameter/2], color="grey", ls="dashdot")
 
         ax.axis("equal")
+        ax.set_title("Meridional View")
+        ax.set_xlabel("Axial Distance [m]")
+        ax.set_ylabel("Radial Distance [m]")
+
         if full:
             ax.plot(self.meridional.outerStreamlineXCoords, -self.meridional.outerStreamlineYCoords, color="black")
             ax.plot(self.meridional.innerStreamlineXCoords, -self.meridional.innerStreamlineYCoords, color="black")
@@ -39,8 +44,8 @@ class Pump:
             if shaft:
                 ax.plot([self.meridional.outerStreamlineXCoords[0], self.meridional.innerStreamlineXCoords[-1]], [-self.impeller.shaftDiameter/2, -self.impeller.shaftDiameter/2], color="grey", ls="dashdot")
             if internalStreamlines:
-                for i in range(1, len(self.blade.streamlinesXCoords)-1):
-                    ax.plot(self.blade.streamlinesXCoords[i], -self.blade.streamlinesYCoords[i], color='grey', ls='--', alpha=0.5, lw=0.5)
+                for i in range(1, len(self.blade.streamlinesMeridionalXCoords)-1):
+                    ax.plot(self.blade.streamlinesMeridionalXCoords[i], [-y for y in self.blade.streamlinesMeridionalYCoords[i]], color='grey', ls='--', alpha=0.5, lw=0.5)
         else:
             ax.set_ylim(ymin=0)
 
@@ -124,74 +129,170 @@ class Pump:
             plt.show()
     
     def plotPlanView(self, plotType="polar", numberOfBlades=1, bladesOrStreamlines="blades", color="black", plotLE=True, show=True, ax=None):
+        
+        plotType = plotType.lower()
+        bladesOrStreamlines = bladesOrStreamlines.lower()
+        color = color.lower()
 
         if type(numberOfBlades) == str:
             if numberOfBlades.lower() == "all":
                 numberOfBlades = self.impeller.numberOfBlades
         
         if not ax:
-            ax = plt.axes(projection='polar')
+            if plotType == "polar":
+                ax = plt.axes(projection='polar')
+            elif plotType == "cartesian":
+                ax = plt.axes()
+        
+        ax.set_title("Plan View")
+
+        if plotType == "cartesian":
+            ax.axis("equal")
+            ax.set_xlabel("x [m]")
+            ax.set_ylabel("y [m]")
+        if plotType == "polar":
+            ax.set_xlabel("Radius [m]")
+            ax.set_ylabel("Theta [Degrees]")
         
         colors = ['black', 'pink', 'blue', 'orange', 'green', 'grey', 'red', 'purple']
 
         for blade in range(numberOfBlades):
 
-            if color.lower() == "multi":
+            if color == "multi":
                 c = colors[blade]
             else:
                 c = color
 
             bladeRotation = blade * (2 * pi / self.impeller.numberOfBlades)
 
-            if bladesOrStreamlines.lower() == "streamlines" or bladesOrStreamlines.lower() == "streamline":
+            if plotType == "cartesian":
 
-                for i in range(len(self.blade.streamlinesEpsilonSchsRadians)):
+                bladeRotation = degrees(bladeRotation)
 
-                    epsilonschsRadians = []
+                if bladesOrStreamlines == "streamlines" or bladesOrStreamlines == "streamline":
 
-                    for j in range(len(self.blade.streamlinesEpsilonSchsRadians[i])):
+                    for i in range(len(self.blade.streamlinesXCoords)):
 
-                        epsilonschsRadians.append(self.blade.streamlinesEpsilonSchsRadians[i][j] + bladeRotation)
+                        rotatedXCoords = []
+                        rotatedYCoords = []
 
-                    ax.plot(epsilonschsRadians, self.blade.streamlinesRadiuses[i], color=c)
+                        for j in range(len(self.blade.streamlinesXCoords[i])):
 
-            elif bladesOrStreamlines.lower() == "blades" or bladesOrStreamlines.lower() == "blade":
+                            rotatedCoords = rotateCartesianCoord(self.blade.streamlinesXCoords[i][j], self.blade.streamlinesYCoords[i][j], bladeRotation)
+                            rotatedXCoords.append(rotatedCoords[0])
+                            rotatedYCoords.append(rotatedCoords[1])
+                        
+                        ax.plot(rotatedXCoords, rotatedYCoords, color=c)
+                
+                if bladesOrStreamlines == "blades" or bladesOrStreamlines == "blade":
 
-                for i in range(len(self.blade.bladesEpsilonSchsRadians)):
+                    for i in range(len(self.blade.bladesXCoords)):
 
-                    epsilonschsRadians = []
+                        rotatedXCoords = []
+                        rotatedYCoords = []
 
-                    for j in range(len(self.blade.bladesEpsilonSchsRadians[i])):
+                        for j in range(len(self.blade.bladesXCoords[i])):
+                            
+                            rotatedCoords = rotateCartesianCoord(self.blade.bladesXCoords[i][j], self.blade.bladesYCoords[i][j], bladeRotation)
+                            rotatedXCoords.append(rotatedCoords[0])
+                            rotatedYCoords.append(rotatedCoords[1])
+                        
+                        ax.plot(rotatedXCoords, rotatedYCoords, color=c)
 
-                        epsilonschsRadians.append(self.blade.bladesEpsilonSchsRadians[i][j] + bladeRotation)
+            if plotType == "polar":
 
-                    ax.plot(epsilonschsRadians, self.blade.bladesRadiuses[i], color=c)
+                if bladesOrStreamlines == "streamlines" or bladesOrStreamlines == "streamline":
+
+                    for i in range(len(self.blade.streamlinesEpsilonSchsRadians)):
+
+                        epsilonschsRadians = []
+
+                        for j in range(len(self.blade.streamlinesEpsilonSchsRadians[i])):
+
+                            epsilonschsRadians.append(self.blade.streamlinesEpsilonSchsRadians[i][j] + bladeRotation)
+
+                        ax.plot(epsilonschsRadians, self.blade.streamlinesRadiuses[i], color=c)
+
+                elif bladesOrStreamlines == "blades" or bladesOrStreamlines == "blade":
+
+                    for i in range(len(self.blade.bladesEpsilonSchsRadians)):
+
+                        epsilonschsRadians = []
+
+                        for j in range(len(self.blade.bladesEpsilonSchsRadians[i])):
+
+                            epsilonschsRadians.append(self.blade.bladesEpsilonSchsRadians[i][j] + bladeRotation)
+
+                        ax.plot(epsilonschsRadians, self.blade.bladesRadiuses[i], color=c)
 
             if plotLE:
 
-                LEEpsilonRadians = []
+                if plotType == "cartesian":
 
-                for i in range(len(self.blade.bladeLEEpsilonsRadians)):
+                    rotatedXCoords = []
+                    rotatedYCoords = []
 
-                    LEEpsilonRadians.append(self.blade.bladeLEEpsilonsRadians[i] + bladeRotation)
+                    for i in range(len(self.blade.bladeLEXCoords)):
 
-                ax.plot(LEEpsilonRadians, self.blade.bladeLERadiuses, color=c)
+                        rotatedCoords = rotateCartesianCoord(self.blade.bladeLEXCoords[i], self.blade.bladeLEYCoords[i], bladeRotation)
+                        rotatedXCoords.append(rotatedCoords[0])
+                        rotatedYCoords.append(rotatedCoords[1])
+                    
+                    ax.plot(rotatedXCoords, rotatedYCoords, color=c)
+                
+                if plotType == "polar":
+
+                    LEEpsilonRadians = []
+
+                    for i in range(len(self.blade.bladeLEEpsilonsRadians)):
+
+                        LEEpsilonRadians.append(self.blade.bladeLEEpsilonsRadians[i] + bladeRotation)
+
+                    ax.plot(LEEpsilonRadians, self.blade.bladeLERadiuses, color=c)
         
         if show:
             plt.show()
 
-    def plotResult(self):
 
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2,2)
+    def plotResult(self, fullMeridional=False):
+        
+        fig = plt.figure(constrained_layout=True)
+        gs = fig.add_gridspec(ncols=3, nrows=2, height_ratios=[1, 1], width_ratios=[1, 2, 2])
+        ax1 = fig.add_subplot(gs[0,0])
+        ax2 = fig.add_subplot(gs[1,0])
+        ax3 = fig.add_subplot(gs[0:,1])
+        ax4 = fig.add_subplot(gs[0:,2])
 
         self.plotVelocityTriangle(area="inlet", ax=ax1, show=False)
         self.plotVelocityTriangle(area="outlet", ax=ax2, show=False)
-        self.plotMeridional(show=False, ax=ax3)
-        self.plotPlanView(show=False, ax=ax4)
+        self.plotMeridional(show=False, ax=ax3, full=fullMeridional)
+        self.plotPlanView(plotType="cartesian", numberOfBlades="all", show=False, ax=ax4)
+
+        fig.suptitle("Pump Design Result", fontsize=20)
+        plot_backend = matplotlib.get_backend()
+
+        def moveFigure(f, x, y, fullScreen=False):
+            """Move figure's upper left corner to pixel (x, y)"""
+            backend = matplotlib.get_backend()
+            mng = plt.get_current_fig_manager()
+            if backend == 'TkAgg':
+                f.canvas.manager.window.wm_geometry("+%d+%d" % (x, y))
+                if fullScreen:
+                    mng.resize(*mng.window.maxsize())
+            elif backend == 'wXAgg':
+                f.canvas.manager.window.SetPosition((x, y))
+                if fullScreen:
+                    mng.frame.Maximize(True)
+            elif backend == "Qt4Agg":
+                # This works for QT and GTK
+                # You can also use window.setGeometry
+                f.canvas.manager.window.move(x, y)
+                if fullScreen:
+                    mng.window.showMaximized()
+
+        moveFigure(fig, 0, 0, fullScreen=True)
 
         plt.show()
-
-        
     
     def printImpellerResults(self, 
     inputs: bool = True,
