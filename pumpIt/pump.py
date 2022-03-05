@@ -1,6 +1,7 @@
 from impeller import Impeller
 from meridional import Meridional
 from bladeDesign import Blade
+from plottingHelper import polarToCartesian
 from voluteDesign import Volute
 import matplotlib.pyplot as plt
 import matplotlib
@@ -255,32 +256,95 @@ class Pump:
         if show:
             plt.show()
 
-    def plotVoluteDevelopment(self, show=True, ax=None):
+    def plotVoluteDevelopmentPlan(self, polar=True, corrected=True, show=True, ax=None):
         
         if not ax:
-            ax = ax = plt.axes(projection='polar')
-        
-        ax.set_title("Volute Development")
-        ax.plot([radians(x) for x in range(360)], [self.impeller.d2/2 for y in range(360)], color="grey", ls="--")
-        ax.plot([radians(x) for x in self.volute.epsilons], self.volute.rAs, color="black")
-        ax.plot([radians(x) for x in range(360)], [self.volute.rzDash for y in range(360)], color="black")
+            if polar:
+                ax = plt.axes(projection='polar')
+            else:
+                ax = plt.axes()
+                ax.axis("equal")
 
+        if corrected:
+            rAs = self.volute.rAsCorrected
+        else:
+            rAs = self.volute.rAs
+        
+        ax.set_title("Volute Development Plan View")
+        if polar:
+            ax.plot([radians(x) for x in range(360)], [self.impeller.d2/2 for y in range(360)], color="grey")
+            ax.plot([radians(x) for x in range(360)], [self.volute.rzDash for y in range(360)], color="black", ls = "--")
+            ax.plot([radians(x) for x in self.volute.epsilons], rAs, color="black")
+        else:
+            xCoordsVolute = []
+            yCoordsVolute = []
+            xCoordsImpeller = []
+            yCoordsImpeller = []
+            xCoordsrzDash = []
+            yCoordsrzDash = []
+            for i in range(len(rAs)):
+                coords = polarToCartesian(rAs[i], self.volute.epsilons[i])
+                xCoordsVolute.append(coords[0])
+                yCoordsVolute.append(coords[1])
+                coords = polarToCartesian(self.impeller.d2/2, self.volute.epsilons[i])
+                xCoordsImpeller.append(coords[0])
+                yCoordsImpeller.append(coords[1])
+                coords = polarToCartesian(self.volute.rzDash, self.volute.epsilons[i])
+                xCoordsrzDash.append(coords[0])
+                yCoordsrzDash.append(coords[1])
+            ax.plot(xCoordsVolute, yCoordsVolute, color="black")
+            ax.plot(xCoordsImpeller, yCoordsImpeller, color = "grey")
+            ax.plot(xCoordsrzDash, yCoordsrzDash, color="black", ls="--")
+            ax.set_xlabel("x Distance [m]")
+            ax.set_ylabel("y Distance [m]")
+
+        if show:
+            plt.show()
+
+    def plotVoluteDevelopmentCrossSection(self, corrected=True, show=True, ax=None, numberOfIntermediateSections=4):
+
+        if not ax:
+            ax = ax = plt.axes()
+        if corrected:
+            rAs = self.volute.rAsCorrected
+        else:
+            rAs = self.volute.rAs
+
+        ax.set_title("Volute Development Cross Section View")
+        ax.axis("equal")
+        ax.set_xlabel("Axial Distance [m]")
+        ax.set_ylabel("Radial Distance [m]")
+        self.volute.voluteCrossSection.generateCoords(self.volute.rzDash, self.volute.b3, rAs[0] - self.volute.rzDash)
+        ax.plot(self.volute.voluteCrossSection.aCoords, self.volute.voluteCrossSection.rCoords, color="black")
+        self.volute.voluteCrossSection.generateCoords(self.volute.rzDash, self.volute.b3, rAs[-1] - self.volute.rzDash)
+        ax.plot(self.volute.voluteCrossSection.aCoords, self.volute.voluteCrossSection.rCoords, color="black")
+
+        idxIncrement = round(len(rAs) / (numberOfIntermediateSections + 1))
+        i = idxIncrement
+        while i < len(rAs):
+            self.volute.voluteCrossSection.generateCoords(self.volute.rzDash, self.volute.b3, rAs[i] - self.volute.rzDash)
+            ax.plot(self.volute.voluteCrossSection.aCoords, self.volute.voluteCrossSection.rCoords, color="grey", ls="--", alpha=0.5)
+            i += idxIncrement
         if show:
             plt.show()
 
     def plotResult(self, fullMeridional=False):
         
         fig = plt.figure(constrained_layout=True)
-        gs = fig.add_gridspec(ncols=3, nrows=2, height_ratios=[1, 1], width_ratios=[1, 2, 2])
+        gs = fig.add_gridspec(ncols=4, nrows=2, height_ratios=[1, 1], width_ratios=[1, 2, 2, 2])
         ax1 = fig.add_subplot(gs[0,0])
         ax2 = fig.add_subplot(gs[1,0])
         ax3 = fig.add_subplot(gs[0:,1])
         ax4 = fig.add_subplot(gs[0:,2])
+        ax5 = fig.add_subplot((gs[0,3]))
+        ax6 = fig.add_subplot((gs[1,3]))
 
         self.plotVelocityTriangle(area="inlet", ax=ax1, show=False)
         self.plotVelocityTriangle(area="outlet", ax=ax2, show=False)
         self.plotMeridional(show=False, ax=ax3, full=fullMeridional)
         self.plotPlanView(plotType="cartesian", numberOfBlades="all", show=False, ax=ax4)
+        self.plotVoluteDevelopmentPlan(polar=False, show=False, ax=ax5)
+        self.plotVoluteDevelopmentCrossSection(show=False, ax=ax6)
 
         fig.suptitle("Pump Design Result", fontsize=20)
         plot_backend = matplotlib.get_backend()

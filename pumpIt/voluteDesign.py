@@ -105,14 +105,16 @@ class RectangularCrossSection(CrossSection):
         self.rCoords += rCoordsReflected
 
         return self.calculateSummation()
-"""
-t1 = TrapezoidalCrossSection()
-t2 = RectangularCrossSection()
-print(t1.generateCoords(1, 2, 4))
-print(t2.generateCoords(1, 2, 4))
-t1.plotShape()
-t2.plotShape()
-"""
+
+class CircularCrossSection(CrossSection):
+
+    def __init__(self, numberOfSections: int = 100):
+        super().__init__(numberOfSections)
+
+    def generateCoords(self):
+
+        pass
+        
 class Volute:
 
     def __init__(
@@ -205,3 +207,17 @@ class Volute:
             epsilon = ((360 * self.c2u * (self.impeller.d2 / 2)) / self.QLe) * summation
 
             rA += rAIncrement
+
+        self.a3 = self.rAs[-1] - self.rzDash
+        self.throatArea = self.a3 # Alias
+
+        # Cutwater correction
+        # Applies linear correction from 0 to 360 degrees
+        self.deltaa3 = self.a3 * 0.2 * ((self.e3 / self.a3) ** 2)
+        correction = np.linspace(0, self.deltaa3, len(self.rAs))
+        self.rAsCorrected = [None for x in range(len(self.rAs))]
+        for i in range(len(self.rAs)):
+            self.rAsCorrected[i] = self.rAs[i] + correction[i]
+
+        # Discharge nozzle
+
