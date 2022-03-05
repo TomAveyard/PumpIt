@@ -28,7 +28,7 @@ class CrossSection:
             deltar = self.rCoords[i+1] - r
             b = 2 * abs(self.aCoords[i])
 
-            sum += (r / b) * deltar
+            sum += (b / r) * deltar
             i += 1
 
         return sum
@@ -46,17 +46,20 @@ class CrossSection:
 
 class TrapezoidalCrossSection(CrossSection):
 
-    def __init__(self, angle, numberOfSections: int = 100):
+    def __init__(self, angle: float = 45, numberOfSections: int = 1000):
         super().__init__(numberOfSections)
         self.angle = angle
 
     def generateCoords(self, rBase, width: float, height: float) -> float:
 
+        self.aCoords = []
+        self.rCoords = []
+
         self.width = width
         self.height = height
         self.rBase = rBase
         base = [-self.width / 2, self.rBase]
-        top = [0, self.height]
+        top = [0, self.rBase + self.height]
 
         control = findIntersection(base, 90 + self.angle, top, 180)
 
@@ -79,11 +82,14 @@ class TrapezoidalCrossSection(CrossSection):
 
 class RectangularCrossSection(CrossSection):
 
-    def __init__(self, numberOfSections: int = 100):
+    def __init__(self, numberOfSections: int = 1000):
         super().__init__(numberOfSections)
 
     def generateCoords(self, rBase: float, width: float, height: float) -> float:
         
+        self.aCoords = []
+        self.rCoords = []
+
         self.width = width
         self.height = height
         self.rBase = rBase
@@ -99,43 +105,39 @@ class RectangularCrossSection(CrossSection):
         self.rCoords += rCoordsReflected
 
         return self.calculateSummation()
-   
-test = RectangularCrossSection(numberOfSections=1000)
-print(test.generateCoords(1.1, 1.4, 1.2))
-test.plotShape()
-
+"""
+t1 = TrapezoidalCrossSection()
+t2 = RectangularCrossSection()
+print(t1.generateCoords(1, 2, 4))
+print(t2.generateCoords(1, 2, 4))
+t1.plotShape()
+t2.plotShape()
+"""
 class Volute:
 
     def __init__(
         self, 
-        impeller: Impeller, 
-        partialVolutes: int = 1, 
-        wrapAngleIncrement: float = 12.5, 
+        impeller: Impeller,
+        voluteCrossSection: TrapezoidalCrossSection | RectangularCrossSection,
         diffuser = None, 
         dzd2RatioOverride: float = None,
         b3b2RatioOverride: float = None,
-        voluteCrossSection: TrapezoidalCrossSection | RectangularCrossSection = None
+        rAIncrementFactor: float = 1000
         ) -> None:
 
-        self.partialVolutes = partialVolutes
-        self.ZLe = self.partialVolutes # Alias
         self.impeller = impeller
-        self.wrapAngleIncrement = wrapAngleIncrement
         self.diffuser = diffuser
         self.dzd2RatioOverride = dzd2RatioOverride
         self.b3b2RatioOverride = b3b2RatioOverride
+        self.voluteCrossSection = voluteCrossSection
+        self.rAIncrementFactor = rAIncrementFactor
 
-        # Determine wrap angles
-        self.wrapAngles = [None for x in range(self.partialVolutes)]
-        self.wrapAngles[0] = 360 / self.partialVolutes
-        if self.partialVolutes > 1:
-            for i in range(1, len(self.wrapAngles)):
-                if self.impeller.numberOfBlades % 2 == 0:
-                    self.wrapAngleIncrement = 0
-                self.wrapAngles[i] = self.wrapAngles[i-1] - self.wrapAngleIncrement
+        # TODO: Support partial volutes
+        self.ZLe = 1
+        self.wrapAngle = 360
 
         # Determine the flow rate through volute
-        self.casingDesignFlowRate = self.impeller.impellerVolumeFlowRate
+        self.casingDesignFlowRate = self.impeller.metreCubedPerSec
         self.QLe = self.casingDesignFlowRate # Alias
 
         # If no diffuser, inlet velocity = circumferntial component of absolute velocity of impeller outlet
@@ -159,6 +161,7 @@ class Volute:
 
         self.cutwaterDiameter = self.dzd2Ratio * self.impeller.d2
         self.dz = self.cutwaterDiameter
+        self.rz = self.dz / 2
 
         # Determine inlet width
         # TODO: Research better ways of calculating this
@@ -175,7 +178,7 @@ class Volute:
 
         # Calculate cutwater LE
 
-        self.cutwaterLEThickness = 0.2 * self.impeller.d2
+        self.cutwaterLEThickness = 0.02 * self.impeller.d2
         self.e3 = self.cutwaterLEThickness # Alias
 
         self.cutwaterIncidence = 3
@@ -185,9 +188,20 @@ class Volute:
         self.cutwaterCamberAngle = self.alpha3 + self.cutwaterIncidence
         self.alpha3B = self.cutwaterCamberAngle # Alias
 
-        # Calculate volute throat area
-         
+        # Calculate volute
         
-        
+        self.rzDash = self.rz + (self.e3 / 2)
+        self.rAs = []
+        self.epsilons = []
+        rAIncrement = self.rz / self.rAIncrementFactor
+        epsilon = 0
+        rA = self.rzDash
+        while epsilon <= self.wrapAngle:
+            
+            self.rAs.append(rA)
+            self.epsilons.append(epsilon)
 
-        
+            summation = voluteCrossSection.generateCoords(self.rzDash, self.b3, rA - self.rzDash)
+            epsilon = ((360 * self.c2u * (self.impeller.d2 / 2)) / self.QLe) * summation
+
+            rA += rAIncrement

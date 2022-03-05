@@ -1,6 +1,7 @@
 from impeller import Impeller
 from meridional import Meridional
 from bladeDesign import Blade
+from voluteDesign import Volute
 import matplotlib.pyplot as plt
 import matplotlib
 from math import tan, radians, pi, degrees
@@ -8,11 +9,12 @@ from plottingHelper import rotateCartesianCoord
 
 class Pump:
 
-    def __init__(self, impeller: Impeller, meridional: Meridional, blade: Blade):
+    def __init__(self, impeller: Impeller, meridional: Meridional, blade: Blade, volute: Volute):
 
         self.impeller = impeller
         self.meridional = meridional
         self.blade = blade
+        self.volute = volute
 
     def plotMeridional(self, show=True, full=False, shaft=True, internalStreamlines=True, ax=None):
         
@@ -253,6 +255,18 @@ class Pump:
         if show:
             plt.show()
 
+    def plotVoluteDevelopment(self, show=True, ax=None):
+        
+        if not ax:
+            ax = ax = plt.axes(projection='polar')
+        
+        ax.set_title("Volute Development")
+        ax.plot([radians(x) for x in range(360)], [self.impeller.d2/2 for y in range(360)], color="grey", ls="--")
+        ax.plot([radians(x) for x in self.volute.epsilons], self.volute.rAs, color="black")
+        ax.plot([radians(x) for x in range(360)], [self.volute.rzDash for y in range(360)], color="black")
+
+        if show:
+            plt.show()
 
     def plotResult(self, fullMeridional=False):
         

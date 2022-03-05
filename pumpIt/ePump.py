@@ -3,7 +3,7 @@ from impeller import Impeller
 from meridional import Meridional
 from bladeDesign import Blade
 from pump import Pump
-from voluteDesign import Volute
+from voluteDesign import Volute, TrapezoidalCrossSection, RectangularCrossSection
 
 fluid = fl.Fluid(density=787, viscosity=2.86e-3, vapourPressure=4100)
 impeller = Impeller(suctionSpecificSpeedEU=650,
@@ -19,10 +19,11 @@ impeller = Impeller(suctionSpecificSpeedEU=650,
 )
 meridionalSection = Meridional(impeller)
 bladeDesign = Blade(meridionalSection, 3)
+voluteCrossSection = TrapezoidalCrossSection()
+volute = Volute(impeller, voluteCrossSection)
 
-volute = Volute(impeller, partialVolutes=2)
-
-pump = Pump(impeller, meridionalSection, bladeDesign)
+pump = Pump(impeller, meridionalSection, bladeDesign, volute)
 #pump.plotMeridional()
 #pump.plotPlanView(plotType="polar", numberOfBlades=6)
 #pump.plotResult(fullMeridional=True)
+pump.plotVoluteDevelopment()
