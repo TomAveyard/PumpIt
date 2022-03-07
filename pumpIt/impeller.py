@@ -213,7 +213,7 @@ class Impeller:
 
         # Calculate impeller outer diameter
 
-        self.impellerOutletDiameter = (2 / self.radPerSec) * sqrt((constants.G * self.headRise) / self.headCoefficient)
+        self.impellerOutletDiameter = (60 / (pi * self.rpm)) * sqrt((2 * constants.G * self.headRise) / self.headCoefficient)
         self.u2 = (self.impellerOutletDiameter / 2) * self.radPerSec
 
         # Calculate impeller inlet diameter

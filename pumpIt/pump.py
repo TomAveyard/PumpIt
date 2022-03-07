@@ -35,7 +35,7 @@ class Pump:
             ax.plot([self.meridional.outerStreamlineXCoords[0], self.meridional.innerStreamlineXCoords[-1]], [self.impeller.shaftDiameter/2, self.impeller.shaftDiameter/2], color="grey", ls="dashdot")
 
         ax.axis("equal")
-        ax.set_title("Meridional View")
+        ax.set_title("Impeller Meridional View")
         ax.set_xlabel("Axial Distance [m]")
         ax.set_ylabel("Radial Distance [m]")
 
@@ -55,7 +55,7 @@ class Pump:
         if show:
             plt.show()
 
-    def plotVelocityTriangle(self, area: str, withBlockage: bool = True, withoutBlockage: bool = True, decimalPoints: int = 2, show=True, ax=None):
+    def plotVelocityTriangle(self, area: str, withBlockage: bool = True, withoutBlockage: bool = True, decimalPoints: int = 2, show=True, ax=None, equalAxes=False):
 
         if area.lower() == "inlet":
             title = "Inlet"
@@ -122,11 +122,14 @@ class Pump:
         ax.arrow(0, 0, u-cu, (u-cu) * tan(radians(betaB)), head_width=0, head_length=0, length_includes_head=True, edgecolor="black", facecolor="black", linestyle="dotted", label="BetaB: " + str(round(betaB, 2)) + " [deg]")
 
         ax.legend()
-        ax.set_title(title + " Velocity Triangle")
+        ax.set_title("Impeller " + title + " Velocity Triangle")
         ax.set_xlabel("Speed [m/s]")
         ax.set_ylabel("Speed [m/s]")
 
         plt.gca().set_ylim(bottom=-standardOffset - padding)
+
+        if equalAxes:
+            ax.axis("equal")
 
         if show:
             plt.show()
@@ -147,7 +150,7 @@ class Pump:
             elif plotType == "cartesian":
                 ax = plt.axes()
         
-        ax.set_title("Plan View")
+        ax.set_title("Impeller Plan View")
 
         if plotType == "cartesian":
             ax.axis("equal")
@@ -339,8 +342,8 @@ class Pump:
         ax5 = fig.add_subplot((gs[0,3]))
         ax6 = fig.add_subplot((gs[1,3]))
 
-        self.plotVelocityTriangle(area="inlet", ax=ax1, show=False)
-        self.plotVelocityTriangle(area="outlet", ax=ax2, show=False)
+        self.plotVelocityTriangle(area="inlet", ax=ax1, show=False, equalAxes=True)
+        self.plotVelocityTriangle(area="outlet", ax=ax2, show=False, equalAxes=True)
         self.plotMeridional(show=False, ax=ax3, full=fullMeridional)
         self.plotPlanView(plotType="cartesian", numberOfBlades="all", show=False, ax=ax4)
         self.plotVoluteDevelopmentPlan(polar=False, show=False, ax=ax5)

@@ -1,8 +1,12 @@
-from math import atan2, degrees
+from cmath import pi
+from math import atan2, degrees, sqrt
 from impeller import Impeller
-from plottingHelper import Bezier, findIntersection
+from plottingHelper import Bezier, findIntersection, findIntersectionOfCoords
 import matplotlib.pyplot as plt
 import numpy as np
+import csv
+import sys
+import os
 
 class CrossSection:
 
@@ -16,6 +20,21 @@ class CrossSection:
     def generateCoords(self):
 
         pass
+
+    def calculateArea(self) -> float:
+
+        i = 0
+        sum = 0
+
+        while i < self.numberOfSections - 1:
+
+            deltar = self.rCoords[i+1] - self.rCoords[i]
+            b = 2 * abs(self.aCoords[i])
+
+            sum += b * deltar
+            i += 1
+
+        return sum
 
     def calculateSummation(self) -> float:
 
@@ -124,7 +143,10 @@ class Volute:
         diffuser = None, 
         dzd2RatioOverride: float = None,
         b3b2RatioOverride: float = None,
-        rAIncrementFactor: float = 1000
+        rAIncrementFactor: float = 1000,
+        dischargeAreaRatio: float = None,
+        dischargeLength: float = None,
+        dischargeExitDiameter: float = None
         ) -> None:
 
         self.impeller = impeller
@@ -133,6 +155,12 @@ class Volute:
         self.b3b2RatioOverride = b3b2RatioOverride
         self.voluteCrossSection = voluteCrossSection
         self.rAIncrementFactor = rAIncrementFactor
+        self.dischargeAreaRatio = dischargeAreaRatio
+        self.dischargeLength = dischargeLength
+        self.dischargeExitDiameter = dischargeExitDiameter
+
+        if self.dischargeExitDiameter != None:
+            self.dischargeArea = pi * (self.dischargeExitDiameter/2) ** 2
 
         # TODO: Support partial volutes
         self.ZLe = 1
@@ -195,21 +223,27 @@ class Volute:
         self.rzDash = self.rz + (self.e3 / 2)
         self.rAs = []
         self.epsilons = []
+        self.areas = []
         rAIncrement = self.rz / self.rAIncrementFactor
         epsilon = 0
+        area = 0
         rA = self.rzDash
         while epsilon <= self.wrapAngle:
             
             self.rAs.append(rA)
             self.epsilons.append(epsilon)
+            self.areas.append(area)
 
             summation = voluteCrossSection.generateCoords(self.rzDash, self.b3, rA - self.rzDash)
+            area = voluteCrossSection.calculateArea()
             epsilon = ((360 * self.c2u * (self.impeller.d2 / 2)) / self.QLe) * summation
 
             rA += rAIncrement
 
         self.a3 = self.rAs[-1] - self.rzDash
-        self.throatArea = self.a3 # Alias
+        self.throatWidth = self.a3 # Alias
+        self.A3q = self.areas[-1]
+        self.throatArea = self.A3q # Alias
 
         # Cutwater correction
         # Applies linear correction from 0 to 360 degrees
@@ -220,4 +254,65 @@ class Volute:
             self.rAsCorrected[i] = self.rAs[i] + correction[i]
 
         # Discharge nozzle
+
+        if type(voluteCrossSection) == RectangularCrossSection:
+            self.hd = self.voluteCrossSection.height
+        else:
+            self.Rdeq = sqrt(self.throatArea / pi)
+
+        if self.dischargeExitDiameter != None:
+            self.dischargeAreaRatio = self.dischargeArea / self.throatArea
+
+        # Returns either area ratio or length depending on which was specified, from the specified file
+        def readCpData(file, length=None, areaRatio=None):
+            
+            if type(self.voluteCrossSection) == RectangularCrossSection:
+                dimension = self.hd
+            else:
+                dimension = self.Rdeq
+
+            reader = csv.reader(file)
+            cpData = [[], []]
+            for row in reader:
+                cpData[0].append(float(row[0]))
+                cpData[1].append(float(row[1]))
+            if length != None:
+                x = length / dimension
+                line2 = [[x, x], [0, 10]]
+                point = findIntersectionOfCoords(cpData, line2)
+                return point[1] + 1
+            elif areaRatio != None:
+                y = areaRatio - 1
+                line2 = [[1, 40], [y, y]]
+                point = findIntersectionOfCoords(cpData, line2)
+                return point[0] * dimension
+        
+        # Uses above function with the correct cp data file
+        scriptDir = os.path.dirname(__file__)
+        if dischargeAreaRatio != None:
+            if type(voluteCrossSection) == RectangularCrossSection:
+                relPath = "Data\planarcp__.csv"
+                absFilePath = os.path.join(scriptDir, relPath)
+                with open(absFilePath, 'r') as file:
+                    self.dischargeLength = readCpData(file, areaRatio=self.dischargeAreaRatio)
+            else:
+                relPath = "Data\conicalcp__.csv"
+                absFilePath = os.path.join(scriptDir, relPath)
+                with open(absFilePath, 'r') as file:
+                    self.dischargeLength = readCpData(file, areaRatio=self.dischargeAreaRatio)
+        elif dischargeLength != None:
+            if type(voluteCrossSection) == RectangularCrossSection:
+                relPath = "Data\planarcp_.csv"
+                absFilePath = os.path.join(scriptDir, relPath)
+                with open(absFilePath, 'r') as file:
+                    self.dischargeAreaRatio = readCpData(file, length=self.dischargeLength)
+            else:
+                relPath = "Data\conicalcp_.csv"
+                absFilePath = os.path.join(scriptDir, relPath)
+                with open(absFilePath, 'r') as file:
+                    self.dischargeAreaRatio = readCpData(file, length=self.dischargeLength)
+        
+        
+
+
 

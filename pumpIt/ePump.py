@@ -12,7 +12,7 @@ impeller = Impeller(suctionSpecificSpeedEU=650,
             headRise=295,
             fluid=fluid,
             shaftAllowableShearStress=8e7,
-            numberOfBlades=6,
+            numberOfBlades=5,
             approachFlowAngle=90,
             outletBladeAngle=22.5,
             inletBladeInnerDiameterRatio=1.15
@@ -20,11 +20,10 @@ impeller = Impeller(suctionSpecificSpeedEU=650,
 meridionalSection = Meridional(impeller)
 bladeDesign = Blade(meridionalSection, 3)
 voluteCrossSection = TrapezoidalCrossSection()
-volute = Volute(impeller, voluteCrossSection)
+volute = Volute(impeller, voluteCrossSection, dischargeAreaRatio=3)
 
 pump = Pump(impeller, meridionalSection, bladeDesign, volute)
+
 #pump.plotMeridional()
-#pump.plotPlanView(plotType="polar", numberOfBlades=6)
-pump.plotResult(fullMeridional=True)
-#pump.plotVoluteDevelopmentPlan(polar=False)
-#pump.plotVoluteDevelopmentCrossSection()
+#pump.plotResult(fullMeridional=True)
+pump.plotVoluteDevelopmentPlan(polar=False)
