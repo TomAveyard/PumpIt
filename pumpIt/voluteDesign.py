@@ -1,7 +1,7 @@
 from cmath import pi
 from math import atan2, degrees, sqrt
 from impeller import Impeller
-from plottingHelper import Bezier, findIntersection, findIntersectionOfCoords
+from plottingHelper import Bezier, findIntersection, findIntersectionOfCoords, polarToCartesian, cartesianToPolar, polarToCartesianLines, cartesianToPolarLines
 import matplotlib.pyplot as plt
 import numpy as np
 import csv
@@ -144,9 +144,12 @@ class Volute:
         dzd2RatioOverride: float = None,
         b3b2RatioOverride: float = None,
         rAIncrementFactor: float = 1000,
+        applyCutwaterCorrection: bool = True,
         dischargeAreaRatio: float = None,
         dischargeLength: float = None,
-        dischargeExitDiameter: float = None
+        dischargeExitDiameter: float = None,
+        numberOfPointsCutwater: int = 100,
+        numberOfSectionsDischarge: int = 100
         ) -> None:
 
         self.impeller = impeller
@@ -158,6 +161,8 @@ class Volute:
         self.dischargeAreaRatio = dischargeAreaRatio
         self.dischargeLength = dischargeLength
         self.dischargeExitDiameter = dischargeExitDiameter
+        self.numberOfPointsCutwater = numberOfPointsCutwater
+        self.numberOfSectionsDischarge = numberOfSectionsDischarge
 
         if self.dischargeExitDiameter != None:
             self.dischargeArea = pi * (self.dischargeExitDiameter/2) ** 2
@@ -234,7 +239,7 @@ class Volute:
             self.epsilons.append(epsilon)
             self.areas.append(area)
 
-            summation = voluteCrossSection.generateCoords(self.rzDash, self.b3, rA - self.rzDash)
+            summation = voluteCrossSection.generateCoords(self.rz, self.b3, rA - self.rzDash)
             area = voluteCrossSection.calculateArea()
             epsilon = ((360 * self.c2u * (self.impeller.d2 / 2)) / self.QLe) * summation
 
@@ -252,6 +257,9 @@ class Volute:
         self.rAsCorrected = [None for x in range(len(self.rAs))]
         for i in range(len(self.rAs)):
             self.rAsCorrected[i] = self.rAs[i] + correction[i]
+        
+        if applyCutwaterCorrection:
+            self.rAs = self.rAsCorrected
 
         # Discharge nozzle
 
@@ -311,8 +319,56 @@ class Volute:
                 absFilePath = os.path.join(scriptDir, relPath)
                 with open(absFilePath, 'r') as file:
                     self.dischargeAreaRatio = readCpData(file, length=self.dischargeLength)
+
+        self.dischargeArea = self.throatArea * self.dischargeAreaRatio
+
+        if self.dischargeExitDiameter == None:
+
+            self.dischargeExitDiameter = sqrt(self.dischargeArea / pi)
+
+        # Convert to cartesian coords for easier construction of discarge nozzle
+
+        self.xCoords = []
+        self.yCoords = []
+        self.rzDashXCoords = []
+        self.rzDashYCoords = []
+        for i in range(len(self.rAsCorrected)):
+            coords = polarToCartesian(self.rAsCorrected[i], self.epsilons[i])
+            self.xCoords.append(coords[0])
+            self.yCoords.append(coords[1])
+            coords = polarToCartesian(self.rzDash, self.epsilons[i])
+            self.rzDashXCoords.append(coords[0])
+            self.rzDashYCoords.append(coords[1])
+
+        # Calculate cutwater coords
+        self.cutwaterXCoords = []
+        self.cutwaterYCoords = []
+        degreeIncrement = 180 / self.numberOfPointsCutwater
+        degree = 180
+        for i in range(self.numberOfPointsCutwater):
+            cutwaterCentre = [self.xCoords[0] + (self.e3 / 2), self.yCoords[0]]
+            cartesianCoords = polarToCartesian(self.e3 / 2, degree)
+            self.cutwaterXCoords.append(cutwaterCentre[0] + cartesianCoords[0])
+            self.cutwaterYCoords.append(cutwaterCentre[1] + cartesianCoords[1])
+            degree += degreeIncrement
         
+        # Convert cutwater coords to polar for polar plotting
+        self.cutwaterEpsilons = []
+        self.cutwaterRs = []
+        for i in range(len(self.cutwaterXCoords)):
+            polarCoords = cartesianToPolar(self.cutwaterXCoords[i], self.cutwaterYCoords[i])
+            self.cutwaterRs.append(polarCoords[0])
+            self.cutwaterEpsilons.append(polarCoords[1])
+
+        # Calcaulte coordinates of discharge outlet
+        self.dischargeOutletXCoords = [self.cutwaterXCoords[-1] + self.dischargeExitDiameter, self.cutwaterXCoords[-1]]
+        self.dischargeOutletYCoords = [self.cutwaterYCoords[-1] + self.dischargeLength, self.cutwaterYCoords[-1] + self.dischargeLength]
+
+        # Join all coords into another coordinate set for easy plotting
+        self.cutwaterXCoords.reverse()
+        self.cutwaterYCoords.reverse()
+
+        self.totalXCoords = self.xCoords + self.dischargeOutletXCoords + self.cutwaterXCoords
+        self.totalYCoords = self.yCoords + self.dischargeOutletYCoords + self.cutwaterYCoords
+        self.totalRCoords, self.totalEpsilons = cartesianToPolarLines(self.totalXCoords, self.totalYCoords)
         
-
-
-

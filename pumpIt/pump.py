@@ -259,7 +259,7 @@ class Pump:
         if show:
             plt.show()
 
-    def plotVoluteDevelopmentPlan(self, polar=True, corrected=True, show=True, ax=None):
+    def plotVoluteDevelopmentPlan(self, polar=True, show=True, ax=None):
         
         if not ax:
             if polar:
@@ -267,35 +267,25 @@ class Pump:
             else:
                 ax = plt.axes()
                 ax.axis("equal")
-
-        if corrected:
-            rAs = self.volute.rAsCorrected
-        else:
-            rAs = self.volute.rAs
         
         ax.set_title("Volute Development Plan View")
         if polar:
             ax.plot([radians(x) for x in range(360)], [self.impeller.d2/2 for y in range(360)], color="grey")
             ax.plot([radians(x) for x in range(360)], [self.volute.rzDash for y in range(360)], color="black", ls = "--")
-            ax.plot([radians(x) for x in self.volute.epsilons], rAs, color="black")
+            ax.plot([radians(x) for x in self.volute.totalEpsilons], self.volute.totalRCoords, color="black")
         else:
-            xCoordsVolute = []
-            yCoordsVolute = []
             xCoordsImpeller = []
             yCoordsImpeller = []
             xCoordsrzDash = []
             yCoordsrzDash = []
-            for i in range(len(rAs)):
-                coords = polarToCartesian(rAs[i], self.volute.epsilons[i])
-                xCoordsVolute.append(coords[0])
-                yCoordsVolute.append(coords[1])
+            for i in range(len(self.volute.rAs)):
                 coords = polarToCartesian(self.impeller.d2/2, self.volute.epsilons[i])
                 xCoordsImpeller.append(coords[0])
                 yCoordsImpeller.append(coords[1])
                 coords = polarToCartesian(self.volute.rzDash, self.volute.epsilons[i])
                 xCoordsrzDash.append(coords[0])
                 yCoordsrzDash.append(coords[1])
-            ax.plot(xCoordsVolute, yCoordsVolute, color="black")
+            ax.plot(self.volute.totalXCoords, self.volute.totalYCoords, color="black")
             ax.plot(xCoordsImpeller, yCoordsImpeller, color = "grey")
             ax.plot(xCoordsrzDash, yCoordsrzDash, color="black", ls="--")
             ax.set_xlabel("x Distance [m]")

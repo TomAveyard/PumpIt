@@ -113,12 +113,33 @@ def polarToCartesian(r, theta):
 
     return [x, y]
 
+def polarToCartesianLines(rs, thetas):
+    xs = []
+    ys = []
+    for i in range(len(rs)):
+        cartesianCoord = polarToCartesian(rs[i], thetas[i])
+        xs.append(cartesianCoord[0])
+        ys.append(cartesianCoord[1])
+
+    return xs, ys
+
 def cartesianToPolar(x, y):
 
     r = sqrt(x**2 + y**2)
     theta = degrees(atan2(y, x))
 
     return [r, theta]
+
+def cartesianToPolarLines(xs, ys):
+
+    rs = []
+    thetas = []
+    for i in range(len(xs)):
+        polarCoord = cartesianToPolar(xs[i], ys[i])
+        rs.append(polarCoord[0])
+        thetas.append(polarCoord[1])
+
+    return rs, thetas
 
 def rotateCartesianCoord(x, y, rotation, origin=[0,0]):
 
