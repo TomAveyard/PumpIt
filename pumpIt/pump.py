@@ -259,7 +259,7 @@ class Pump:
         if show:
             plt.show()
 
-    def plotVoluteDevelopmentPlan(self, polar=True, show=True, ax=None):
+    def plotVoluteDevelopmentPlan(self, polar=True, show=True, ax=None, showImpeller=True, showrzDash=True):
         
         if not ax:
             if polar:
@@ -270,8 +270,10 @@ class Pump:
         
         ax.set_title("Volute Development Plan View")
         if polar:
-            ax.plot([radians(x) for x in range(360)], [self.impeller.d2/2 for y in range(360)], color="grey")
-            ax.plot([radians(x) for x in range(360)], [self.volute.rzDash for y in range(360)], color="black", ls = "--")
+            if showImpeller:
+                ax.plot([radians(x) for x in range(360)], [self.impeller.d2/2 for y in range(360)], color="grey")
+            if showrzDash:
+                ax.plot([radians(x) for x in range(360)], [self.volute.rzDash for y in range(360)], color="black", ls = "--")
             ax.plot([radians(x) for x in self.volute.totalEpsilons], self.volute.totalRCoords, color="black")
         else:
             xCoordsImpeller = []
@@ -279,12 +281,14 @@ class Pump:
             xCoordsrzDash = []
             yCoordsrzDash = []
             for i in range(len(self.volute.rAs)):
-                coords = polarToCartesian(self.impeller.d2/2, self.volute.epsilons[i])
-                xCoordsImpeller.append(coords[0])
-                yCoordsImpeller.append(coords[1])
-                coords = polarToCartesian(self.volute.rzDash, self.volute.epsilons[i])
-                xCoordsrzDash.append(coords[0])
-                yCoordsrzDash.append(coords[1])
+                if showImpeller:
+                    coords = polarToCartesian(self.impeller.d2/2, self.volute.epsilons[i])
+                    xCoordsImpeller.append(coords[0])
+                    yCoordsImpeller.append(coords[1])
+                if showrzDash:
+                    coords = polarToCartesian(self.volute.rzDash, self.volute.epsilons[i])
+                    xCoordsrzDash.append(coords[0])
+                    yCoordsrzDash.append(coords[1])
             ax.plot(self.volute.totalXCoords, self.volute.totalYCoords, color="black")
             ax.plot(xCoordsImpeller, yCoordsImpeller, color = "grey")
             ax.plot(xCoordsrzDash, yCoordsrzDash, color="black", ls="--")

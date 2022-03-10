@@ -1,11 +1,10 @@
 from cmath import pi
-from math import atan2, degrees, sqrt
+from math import atan2, degrees, sqrt, tan, radians
 from impeller import Impeller
 from plottingHelper import Bezier, findIntersection, findIntersectionOfCoords, polarToCartesian, cartesianToPolar, polarToCartesianLines, cartesianToPolarLines
 import matplotlib.pyplot as plt
 import numpy as np
 import csv
-import sys
 import os
 
 class CrossSection:
@@ -149,7 +148,8 @@ class Volute:
         dischargeLength: float = None,
         dischargeExitDiameter: float = None,
         numberOfPointsCutwater: int = 100,
-        numberOfSectionsDischarge: int = 100
+        dischargeInnerAngle: float = 2.5
+
         ) -> None:
 
         self.impeller = impeller
@@ -162,7 +162,7 @@ class Volute:
         self.dischargeLength = dischargeLength
         self.dischargeExitDiameter = dischargeExitDiameter
         self.numberOfPointsCutwater = numberOfPointsCutwater
-        self.numberOfSectionsDischarge = numberOfSectionsDischarge
+        self.dischargeInnerAngle = dischargeInnerAngle
 
         if self.dischargeExitDiameter != None:
             self.dischargeArea = pi * (self.dischargeExitDiameter/2) ** 2
@@ -288,16 +288,16 @@ class Volute:
                 x = length / dimension
                 line2 = [[x, x], [0, 10]]
                 point = findIntersectionOfCoords(cpData, line2)
-                return point[1] + 1
+                return point[0] + 1
             elif areaRatio != None:
                 y = areaRatio - 1
                 line2 = [[1, 40], [y, y]]
                 point = findIntersectionOfCoords(cpData, line2)
-                return point[0] * dimension
-        
+                return point[1] * dimension
+
         # Uses above function with the correct cp data file
         scriptDir = os.path.dirname(__file__)
-        if dischargeAreaRatio != None:
+        if self.dischargeAreaRatio != None:
             if type(voluteCrossSection) == RectangularCrossSection:
                 relPath = "Data\planarcp__.csv"
                 absFilePath = os.path.join(scriptDir, relPath)
@@ -308,7 +308,7 @@ class Volute:
                 absFilePath = os.path.join(scriptDir, relPath)
                 with open(absFilePath, 'r') as file:
                     self.dischargeLength = readCpData(file, areaRatio=self.dischargeAreaRatio)
-        elif dischargeLength != None:
+        elif self.dischargeLength != None:
             if type(voluteCrossSection) == RectangularCrossSection:
                 relPath = "Data\planarcp_.csv"
                 absFilePath = os.path.join(scriptDir, relPath)
@@ -324,7 +324,7 @@ class Volute:
 
         if self.dischargeExitDiameter == None:
 
-            self.dischargeExitDiameter = sqrt(self.dischargeArea / pi)
+            self.dischargeExitDiameter = sqrt(self.dischargeArea / pi) * 2
 
         # Convert to cartesian coords for easier construction of discarge nozzle
 
@@ -361,7 +361,8 @@ class Volute:
             self.cutwaterEpsilons.append(polarCoords[1])
 
         # Calcaulte coordinates of discharge outlet
-        self.dischargeOutletXCoords = [self.cutwaterXCoords[-1] + self.dischargeExitDiameter, self.cutwaterXCoords[-1]]
+        xModifier = self.dischargeLength * tan(radians(self.dischargeInnerAngle))
+        self.dischargeOutletXCoords = [self.cutwaterXCoords[-1] + self.dischargeExitDiameter - xModifier, self.cutwaterXCoords[-1] - xModifier]
         self.dischargeOutletYCoords = [self.cutwaterYCoords[-1] + self.dischargeLength, self.cutwaterYCoords[-1] + self.dischargeLength]
 
         # Join all coords into another coordinate set for easy plotting
