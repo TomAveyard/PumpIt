@@ -5,11 +5,12 @@ from plottingHelper import Bezier, findIntersectionOfCoords, polarToCartesian
 
 class Blade:
 
-    def __init__(self, meridionalSection: Meridional, numberOfStreamlines: int = 3, bladeDevelopmentControlPoints: list = [[0,0], [1,1]]) -> None:
+    def __init__(self, meridionalSection: Meridional, numberOfStreamlines: int = 3, bladeDevelopmentControlPoints: list = [[0,0], [1,1]], outletBladeTwist:float = 0) -> None:
         
         self.meridionalSection = meridionalSection
         self.numberOfStreamlines = numberOfStreamlines
         self.bladeDevelopmentControlPoints = bladeDevelopmentControlPoints
+        self.outletBladeTwist = outletBladeTwist
 
         outerStreamlineMeridionalXCoords = self.meridionalSection.outerStreamlineXCoords
         outerStreamlineMeridionalYCoords = self.meridionalSection.outerStreamlineYCoords
@@ -137,9 +138,15 @@ class Blade:
 
         # Find the coords of the streamlines in the plan view for a single blade using the deltas
         # Done for one blade, coords for other blades can be found by adding on a degree rotation to the coords for the one blade
+
         for i in range(len(self.streamlinesBladeAngles)):
 
-            epsilonsch = 0
+            if self.outletBladeTwist != 0:
+                width = abs(self.streamlinesMeridionalXCoords[0][-1] - self.streamlinesMeridionalXCoords[i][-1])
+                deltaU = width * tan(radians(self.outletBladeTwist))
+                epsilonsch = (360 * deltaU) / (2 * pi * (self.meridionalSection.impeller.impellerOutletDiameter/2))
+            else:
+                epsilonsch = 0
 
             r = self.streamlinesMeridionalYCoords[i][-1]
             rs = [r]
