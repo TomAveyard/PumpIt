@@ -207,6 +207,9 @@ class Pump:
 
             if plotType == "polar":
 
+                ax.plot([radians(x) for x in range(360)], [self.impeller.impellerInletDiameter/2 for y in range(360)])
+                ax.plot([radians(x) for x in range(360)], [((self.impeller.impellerInletDiameter)/2 - self.impeller.impellerInletWidth) for y in range(360)])
+
                 if bladesOrStreamlines == "streamlines" or bladesOrStreamlines == "streamline":
 
                     for i in range(len(self.blade.streamlinesEpsilonSchsRadians)):

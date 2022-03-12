@@ -49,6 +49,7 @@ class Meridional:
         self.controlPoints.append(arcEndCoords)
         if numberOuterStreamlineControlPoints == 1:
             self.controlPoints.append(ph.findIntersection(arcEndCoords, self.outerstreamlineCircularSectionArcAngle, outerStreamlineEndCoords, 270 - self.outerStreamlineOutletAngle))
+            
         self.controlPoints.append(outerStreamlineEndCoords)
         radialSectionBezier = ph.Bezier(self.controlPoints)
         radialSectionLength = radialSectionBezier.estimateLength()

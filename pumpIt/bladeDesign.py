@@ -101,11 +101,11 @@ class Blade:
 
             for j in range(self.meridionalSection.numberOfPoints-2, 0, -1):
                 
-                bladeAnglej = self.meridionalSection.impeller.outletBladeAngle - ts[j] * (self.meridionalSection.impeller.outletBladeAngle - self.meridionalSection.impeller.inletBladeAngle)
+                bladeAnglej = self.meridionalSection.impeller.outletBladeAngle - (ts[j] * (self.meridionalSection.impeller.outletBladeAngle - self.meridionalSection.impeller.inletBladeAngle))
                 bladeAngles.append(bladeAnglej)
 
                 deltaMj = sqrt(((xCoords[j] - xCoords[j+1]) ** 2) + ((yCoords[j] - yCoords[j+1]) ** 2))
-                deltaUj = -deltaMj / tan(radians(bladeAnglej))
+                deltaUj = deltaMj / tan(radians(bladeAnglej))
                 deltaLj = sqrt(deltaMj ** 2 + deltaUj ** 2)
                 deltaZj = xCoords[j] - xCoords[j+1]
                 deltaRj = sqrt(deltaMj ** 2 - deltaZj ** 2)
@@ -150,8 +150,8 @@ class Blade:
 
                 r -= self.streamlinesDeltaRs[i][j]
                 rs.append(r)
-                deltaEpsilonsch = 360 * self.streamlinesDeltaUs[i][j] / (2 * pi * r)
-                epsilonsch += deltaEpsilonsch
+                deltaEpsilonsch = (360 * self.streamlinesDeltaUs[i][j]) / (2 * pi * r)
+                epsilonsch -= deltaEpsilonsch
                 epsilonschs.append(epsilonsch)
                 epsilonschsRadians.append(radians(epsilonsch))
 
@@ -187,7 +187,7 @@ class Blade:
         self.bladesRadiuses = []
 
         for i in range(len(self.streamlinesEpsilonSchs)):
-
+            intersectionIdx = self.streamlinesLEIntersectionIdxs[i] + 1
             self.bladesEpsilonSchs.append(self.streamlinesEpsilonSchs[i][0:-intersectionIdx])
             self.bladesEpsilonSchsRadians.append(self.streamlinesEpsilonSchsRadians[i][0:-intersectionIdx])
             self.bladesRadiuses.append(self.streamlinesRadiuses[i][0:-intersectionIdx])
