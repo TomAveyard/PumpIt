@@ -73,6 +73,7 @@ class Meridional:
 
         # Coords for circular arc
         transitionIndex = i
+        self.arcStartIndex = i
 
         extraArcAngle = degrees(atan2(deltam - (self.g1 - self.outerStreamlineXCoords[i-1]), self.outerStreamlineRadiusOfCurvature))
         startCoords = (self.g1 + ((deltam - (self.g1 - self.outerStreamlineXCoords[i-1])) * cos(radians(extraArcAngle))), (self.impeller.d1 / 2) + ((deltam - (self.g1 - self.outerStreamlineXCoords[i-1])) * sin(radians(extraArcAngle))))
@@ -92,6 +93,8 @@ class Meridional:
             self.controlPoints.append(ph.findIntersection(arcEndCoords, self.outerstreamlineCircularSectionArcAngle, outerStreamlineEndCoords, 270 - self.outerStreamlineOutletAngle))
         self.controlPoints.append(outerStreamlineEndCoords)
         radialSectionBezier = ph.Bezier(self.controlPoints)
+
+        self.bezierStartIndex = i
 
         # Coords for radial section
         bezierNumberOfPoints = self.numberOfPoints - i + 1

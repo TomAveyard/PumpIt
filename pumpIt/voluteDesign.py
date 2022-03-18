@@ -1,5 +1,5 @@
 from cmath import pi
-from math import atan2, degrees, sqrt, tan, radians
+from math import atan2, degrees, sqrt, tan, radians, asin, sin, cos, acos
 from impeller import Impeller
 from plottingHelper import Bezier, findIntersection, findIntersectionOfCoords, polarToCartesian, cartesianToPolar, polarToCartesianLines, cartesianToPolarLines
 import matplotlib.pyplot as plt
@@ -15,6 +15,11 @@ class CrossSection:
         self.numberOfSections = numberOfSections
         self.rCoords = []
         self.aCoords = []
+
+        self.width = None
+        self.height = None
+        self.diameter = None
+        self.rBase = None
 
     def generateCoords(self):
 
@@ -129,10 +134,37 @@ class CircularCrossSection(CrossSection):
     def __init__(self, numberOfSections: int = 100):
         super().__init__(numberOfSections)
 
-    def generateCoords(self):
+    def generateCoords(self, rBase: float, width: float, height: float) -> float:
 
-        pass
-        
+        self.aCoords = []
+        self.rCoords = []
+
+        self.rBase = rBase
+        self.width = width
+        self.height = height
+
+        self.diameter = 2 * (((self.width / 2) ** 2) + (self.height ** 2)) / (2 * self.height)
+
+        centre = (0, self.rBase + sqrt((self.diameter / 2) ** 2 - (self.width/2) ** 2))
+        if self.height > self.diameter / 2:
+            startAngle = degrees(asin(self.width / self.diameter))
+        else:
+            startAngle = degrees(acos(self.width / self.diameter)) + 90
+
+        angles = np.linspace(startAngle, 180, self.numberOfSections)
+
+        self.aCoords = [((self.diameter / 2) * sin(radians(theta))) for theta in angles]
+        self.rCoords = [((-self.diameter / 2) * cos(radians(theta)) + centre[1]) for theta in angles]
+        aCoordsReflected = [-((self.diameter / 2) * sin(radians(theta))) for theta in angles]
+        aCoordsReflected.reverse()
+        rCoordsReflected = self.rCoords.copy()
+        rCoordsReflected.reverse()
+
+        self.aCoords += aCoordsReflected
+        self.rCoords += rCoordsReflected
+
+        return self.calculateSummation()
+
 class Volute:
 
     def __init__(
@@ -239,12 +271,12 @@ class Volute:
             self.epsilons.append(epsilon)
             self.areas.append(area)
 
+            rA += rAIncrement
+
             summation = voluteCrossSection.generateCoords(self.rz, self.b3, rA - self.rzDash)
             area = voluteCrossSection.calculateArea()
             epsilon = ((360 * self.c2u * (self.impeller.d2 / 2)) / self.QLe) * summation
-
-            rA += rAIncrement
-
+            
         self.a3 = self.rAs[-1] - self.rzDash
         self.throatWidth = self.a3 # Alias
         self.A3q = self.areas[-1]

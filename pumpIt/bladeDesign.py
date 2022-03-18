@@ -1,16 +1,17 @@
+import imp
 import sys
 from meridional import Meridional
-from math import cos, atan2, degrees, radians, sqrt, tan, pi
+from math import cos, atan2, degrees, radians, sqrt, tan, pi, asin, sin
 from plottingHelper import Bezier, findIntersectionOfCoords, polarToCartesian
 
 class Blade:
 
-    def __init__(self, meridionalSection: Meridional, numberOfStreamlines: int = 3, bladeDevelopmentControlPoints: list = [[0,0], [1,1]], outletBladeTwist:float = 0) -> None:
+    def __init__(self, meridionalSection: Meridional, numberOfStreamlines: int = 3, bladeDevelopmentControlPoints: list = [[0,0], [1,1]], bladeLoadingBandwidth=15) -> None:
         
         self.meridionalSection = meridionalSection
         self.numberOfStreamlines = numberOfStreamlines
         self.bladeDevelopmentControlPoints = bladeDevelopmentControlPoints
-        self.outletBladeTwist = outletBladeTwist
+        self.bladeLoadingBandwidth = bladeLoadingBandwidth
 
         outerStreamlineMeridionalXCoords = self.meridionalSection.outerStreamlineXCoords
         outerStreamlineMeridionalYCoords = self.meridionalSection.outerStreamlineYCoords
@@ -102,7 +103,7 @@ class Blade:
 
             for j in range(self.meridionalSection.numberOfPoints-2, 0, -1):
                 
-                bladeAnglej = self.meridionalSection.impeller.outletBladeAngle - (ts[j] * (self.meridionalSection.impeller.outletBladeAngle - self.meridionalSection.impeller.inletBladeAngle))
+                bladeAnglej = self.meridionalSection.impeller.inletBladeAngle - (ts[j] * (self.meridionalSection.impeller.inletBladeAngle - self.meridionalSection.impeller.outletBladeAngle))
                 bladeAngles.append(bladeAnglej)
 
                 deltaMj = sqrt(((xCoords[j] - xCoords[j+1]) ** 2) + ((yCoords[j] - yCoords[j+1]) ** 2))
@@ -138,6 +139,9 @@ class Blade:
 
         # Find the coords of the streamlines in the plan view for a single blade using the deltas
         # Done for one blade, coords for other blades can be found by adding on a degree rotation to the coords for the one blade
+
+        self.outletBladeInclination = self.meridionalSection.impeller.outletBladeInclination
+        self.outletBladeTwist = 90 - self.outletBladeInclination
 
         for i in range(len(self.streamlinesBladeAngles)):
 
@@ -192,12 +196,15 @@ class Blade:
         self.bladesEpsilonSchs = []
         self.bladesEpsilonSchsRadians = []
         self.bladesRadiuses = []
+        self.bladesAxialCoords = []
 
         for i in range(len(self.streamlinesEpsilonSchs)):
             intersectionIdx = self.streamlinesLEIntersectionIdxs[i] + 1
             self.bladesEpsilonSchs.append(self.streamlinesEpsilonSchs[i][0:-intersectionIdx])
             self.bladesEpsilonSchsRadians.append(self.streamlinesEpsilonSchsRadians[i][0:-intersectionIdx])
             self.bladesRadiuses.append(self.streamlinesRadiuses[i][0:-intersectionIdx])
+            self.bladesAxialCoords.append(self.streamlinesMeridionalXCoords[i][0:-intersectionIdx])
+            self.bladesAxialCoords[i] = self.bladesAxialCoords[i][::-1]
 
         # Gets coords of LE in plan view
         self.bladeLEEpsilons = []
@@ -237,3 +244,61 @@ class Blade:
             coords = polarToCartesian(self.bladeLERadiuses[i], self.bladeLEEpsilons[i])
             self.bladeLEXCoords.append(coords[0])
             self.bladeLEYCoords.append(coords[1])
+
+        # Calculate blade lengths
+
+        self.bladeLengths = []
+        for i in range(len(self.bladesAxialCoords)):
+            length = 0
+            for j in range(1, len(self.bladesAxialCoords[i])-1):
+                deltaR = self.bladesRadiuses[i][j] - self.bladesRadiuses[i][j-1]
+                deltaZ = self.bladesAxialCoords[i][j] - self.bladesAxialCoords[i][j-1]
+                deltaM = sqrt(deltaR ** 2 + deltaZ ** 2)
+                deltaEpsilon = self.bladesEpsilonSchs[i][j] - self.bladesEpsilonSchs[i][j-1]
+                averageR = (self.bladesRadiuses[i][j] + self.bladesRadiuses[i][j-1]) / 2
+                deltaU = deltaEpsilon * 2 * pi * averageR / 360
+                deltaL = sqrt(deltaM ** 2 + deltaU ** 2)
+                length += deltaL
+            self.bladeLengths.append(length)
+
+        # Calculate effective blade loading
+
+        impeller = self.meridionalSection.impeller
+        minimumNonDimensionalBladeLength = min(self.bladeLengths) / impeller.d2
+        w1NonDimensional = impeller.w1 / impeller.u2
+        w2NonDimensional = impeller.w2 / impeller.u2
+
+        self.effectiveBladeLoading = (2 * pi * impeller.headCoefficient) \
+            / (impeller.hydraulicEfficiency * impeller.numberOfBlades * minimumNonDimensionalBladeLength \
+                * (w1NonDimensional + w2NonDimensional))
+            
+        self.allowableBladeLoading = (40 / impeller.nq) ** 0.77
+        bladeLoadingDelta = self.allowableBladeLoading * (self.bladeLoadingBandwidth / 100)
+        self.allowableBladeLoadingBand = [self.allowableBladeLoading - bladeLoadingDelta, self.allowableBladeLoading + bladeLoadingDelta]
+        self.recommendedBladeLoading = self.allowableBladeLoading - (self.allowableBladeLoading * 0.1)
+
+        if self.effectiveBladeLoading < self.allowableBladeLoadingBand[0] or self.effectiveBladeLoading > self.allowableBladeLoadingBand[1]:
+
+            print("Warning: Effective blade loading not within recommended allowable band")
+            print("Effective blade loading: " + str(round(self.effectiveBladeLoading, 5)))
+            print("Allowable blade loading: " + str(round(self.allowableBladeLoadingBand[0], 5)) + " to " + str(round(self.allowableBladeLoadingBand[1], 5)))
+            print("It is recommended to aim for a blade loading of " + str(round(self.recommendedBladeLoading, 2)) + "\n")
+
+        # Calculate blade distance at outlet
+
+        rotation = 360 / impeller.numberOfBlades
+        secondBladeEpsilonschs = [epsilon + rotation for epsilon in self.bladesEpsilonSchs[0]]
+        minDistance = 10000000
+        for i in range(len(secondBladeEpsilonschs)):
+            distance = sqrt((self.bladesRadiuses[0][-1] ** 2 + self.bladesRadiuses[0][i] ** 2) - (2 * self.bladesRadiuses[0][-1] * self.bladesRadiuses[0][i] * cos(radians(secondBladeEpsilonschs[i]))))
+            if distance < minDistance:
+                minDistance = distance
+        
+        self.outletBladeDistance = minDistance
+        self.a2 = self.outletBladeDistance # Alias
+        
+        self.betaa2 = degrees(asin(self.a2 / impeller.t2))
+        self.outletAngleRatio = sin(radians(self.betaa2)) / sin(radians(impeller.beta2B))
+        if self.outletAngleRatio < 0.7 or self.outletAngleRatio > 0.9:
+            print("Warning: Outlet angle ratio should be between 0.7 and 0.9")
+            print("Outlet angle ratio: " + str(round(self.outletAngleRatio, 2)) + "\n")

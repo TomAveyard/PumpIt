@@ -19,8 +19,9 @@ class Impeller:
     fluid: fl.Fluid = None,
     approachFlowAngle: float = 90,
     axialThrustBalanceHoles: bool = False,
-    shaftAllowableShearStress: float = None,
+    shaftAllowableShearStress: float = 42e8,
     shaftDiameterSafetyFactor: float = 1.1,
+    shaftDiameterOverride: float = None,
     headCoefficientCorrelation: str = "gulich",
     numberOfBlades: int = 6,
     hubShaftDiameterRatio: float = 1.5,
@@ -53,6 +54,7 @@ class Impeller:
         self.axialThrustBalanceHoles = axialThrustBalanceHoles
         self.shaftAllowableShearStress = shaftAllowableShearStress
         self.shaftDiameterSafetyFactor = shaftDiameterSafetyFactor
+        self.shaftDiameterOverride = shaftDiameterOverride
         self.headCoefficientCorrelation = headCoefficientCorrelation
         self.headCoefficientOverride = headCoefficientOverride
         self.hubShaftDiameterRatio = hubShaftDiameterRatio
@@ -188,7 +190,11 @@ class Impeller:
         # Eq T7.1.2 Gulich
 
         self.minShaftDiameter = 3.65 * ((self.shaftPower / (self.rpm * self.shaftAllowableShearStress)) ** (1/3))
-        self.shaftDiameter = self.minShaftDiameter * self.shaftDiameterSafetyFactor
+        if self.shaftDiameterOverride == None:
+            self.shaftDiameter = self.minShaftDiameter * self.shaftDiameterSafetyFactor
+        else:
+            self.shaftDiameter = self.shaftDiameterOverride
+        self.shaftTorque = self.shaftPower / self.radPerSec
 
         # Estimation of head coefficient
 
@@ -370,6 +376,11 @@ class Impeller:
         self.beta2Dash = degrees(atan2(self.c2mDash, self.w2u))
         self.deviationAngle = self.beta2B - self.beta2
         self.deviationAngleDash = self.beta2B - self.beta2Dash
+
+        # Outlet pitch
+
+        self.outletPitch = pi * self.impellerOutletDiameter / self.numberOfBlades
+        self.t2 = self.outletPitch # Alias
 
         # Creating aliases
 

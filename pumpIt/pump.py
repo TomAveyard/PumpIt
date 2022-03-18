@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from math import tan, radians, pi, degrees
 from plottingHelper import rotateCartesianCoord
+import os
 
 class Pump:
 
@@ -301,7 +302,7 @@ class Pump:
         if show:
             plt.show()
 
-    def plotVoluteDevelopmentCrossSection(self, corrected=True, show=True, ax=None, numberOfIntermediateSections=4):
+    def plotVoluteDevelopmentCrossSection(self, corrected=True, show=True, ax=None, numberOfIntermediateSections=3):
 
         if not ax:
             ax = ax = plt.axes()
@@ -314,8 +315,8 @@ class Pump:
         ax.axis("equal")
         ax.set_xlabel("Axial Distance [m]")
         ax.set_ylabel("Radial Distance [m]")
-        self.volute.voluteCrossSection.generateCoords(self.volute.rzDash, self.volute.b3, rAs[0] - self.volute.rzDash)
-        ax.plot(self.volute.voluteCrossSection.aCoords, self.volute.voluteCrossSection.rCoords, color="black")
+        #self.volute.voluteCrossSection.generateCoords(self.volute.rzDash, self.volute.b3, rAs[0] - self.volute.rzDash)
+        #ax.plot(self.volute.voluteCrossSection.aCoords, self.volute.voluteCrossSection.rCoords, color="black")
         self.volute.voluteCrossSection.generateCoords(self.volute.rzDash, self.volute.b3, rAs[-1] - self.volute.rzDash)
         ax.plot(self.volute.voluteCrossSection.aCoords, self.volute.voluteCrossSection.rCoords, color="black")
 
@@ -568,3 +569,42 @@ class Pump:
             print(suctionString)
 
         print("")
+    
+    def outputBladeGenFiles(self, unitMultiplier: float = 1e3, workingDirectory: str = "Output", filename: str = "data"):
+
+        if workingDirectory.lower() == "output":
+
+            scriptDir = os.path.dirname(__file__)
+            relPath = "Output"
+            absPath = os.path.join(scriptDir, relPath)
+
+        def writeRTZData(rData, tData, zData, dataName):
+
+            with open(os.path.join(absPath, (filename + "_" + dataName + ".dat")), "w") as f:
+
+                numberOfPoints = len(rData)
+
+                f.write(" " + str(numberOfPoints) + "\n")
+
+                for i in range(numberOfPoints):
+
+                    f.write("\t" + str(rData[i] * unitMultiplier) + " " + str(tData[i]) + " " + str(zData[i] * unitMultiplier) + "\n")
+
+        def writeRZData(rData, zData, dataName):
+
+            with open(os.path.join(absPath, (filename + "_" + dataName + ".dat")), "w") as f:
+
+                numberOfPoints = len(rData)
+
+                f.write(" " + str(numberOfPoints) + "\n")
+
+                for i in range(numberOfPoints):
+
+                    f.write("\t" + str(rData[i] * unitMultiplier) + " " + str(zData[i] * unitMultiplier) + "\n")
+
+        writeRZData(self.meridional.outerStreamlineYCoords, self.meridional.outerStreamlineXCoords, "outerStreamline")
+        writeRZData(self.meridional.innerStreamlineYCoords, self.meridional.innerStreamlineXCoords, "innerStreamline")
+
+        print("Info: BladeGen RZ data files written to: " + absPath)
+
+
