@@ -261,6 +261,17 @@ class Blade:
                 length += deltaL
             self.bladeLengths.append(length)
 
+        self.wrapAngles = []
+        for i in range(len(self.bladesEpsilonSchs)):
+            self.wrapAngles.append(abs(self.bladesEpsilonSchs[i][-1]))
+
+        self.LELengthFractions = []
+        for i in [0, len(self.streamlineMeridionalLengths)-1]:
+            length = 0
+            for j in range(1, self.streamlinesLEIntersectionIdxs[i]):
+                length += sqrt((self.streamlinesMeridionalXCoords[i][j] - self.streamlinesMeridionalXCoords[i][j-1]) ** 2 + (self.streamlinesMeridionalYCoords[i][j] - self.streamlinesMeridionalYCoords[i][j-1]) ** 2)
+            self.LELengthFractions.append(length / self.streamlineMeridionalLengths[i])
+
         # Calculate effective blade loading
 
         impeller = self.meridionalSection.impeller

@@ -570,7 +570,7 @@ class Pump:
 
         print("")
     
-    def outputBladeGenFiles(self, unitMultiplier: float = 1e3, workingDirectory: str = "Output", filename: str = "data"):
+    def outputBladeGenFiles(self, unitMultiplier: float = 1e3, workingDirectory: str = "Output", filename: str = "data", rounding: int = 2):
 
         if workingDirectory.lower() == "output":
 
@@ -578,9 +578,9 @@ class Pump:
             relPath = "Output"
             absPath = os.path.join(scriptDir, relPath)
 
-        def writeRTZData(rData, tData, zData, dataName):
+        def writeRTZData(rData, tData, zData, dataName, writeType="w"):
 
-            with open(os.path.join(absPath, (filename + "_" + dataName + ".dat")), "w") as f:
+            with open(os.path.join(absPath, (filename + "_" + dataName + ".dat")), writeType) as f:
 
                 numberOfPoints = len(rData)
 
@@ -590,9 +590,9 @@ class Pump:
 
                     f.write("\t" + str(rData[i] * unitMultiplier) + " " + str(tData[i]) + " " + str(zData[i] * unitMultiplier) + "\n")
 
-        def writeRZData(rData, zData, dataName):
+        def writeRZData(rData, zData, dataName, writeType="w"):
 
-            with open(os.path.join(absPath, (filename + "_" + dataName + ".dat")), "w") as f:
+            with open(os.path.join(absPath, (filename + "_" + dataName + ".dat")), writeType) as f:
 
                 numberOfPoints = len(rData)
 
@@ -604,7 +604,23 @@ class Pump:
 
         writeRZData(self.meridional.outerStreamlineYCoords, self.meridional.outerStreamlineXCoords, "outerStreamline")
         writeRZData(self.meridional.innerStreamlineYCoords, self.meridional.innerStreamlineXCoords, "innerStreamline")
+        for i in range(0, len(self.blade.bladesRadiuses)):
+            writeRTZData(self.blade.bladesRadiuses[i], self.blade.bladesEpsilonSchsRadians[i], self.blade.bladesAxialCoords[i], "blade" + str(i), writeType="w")
 
-        print("Info: BladeGen RZ data files written to: " + absPath)
+        print("Info: BladeGen data files written to: " + absPath)
+        print("Data for manual input:")
+        print("\tLE Length Fractions: " + str(round(self.blade.LELengthFractions[0], rounding)) + " " + str(round(self.blade.LELengthFractions[1], rounding)))
+        print("\tWrap Angles: ", end="")
+        for i in self.blade.wrapAngles:
+            print(str(round(i, rounding)), end=" ")
+        print("")
+        print("\tLE Start Angles: ", end="")
+        for i in self.blade.wrapAngles:
+            print(str(round(self.blade.wrapAngles[0] - i, rounding)), end=" ")
+        print("")
+        print("\tBlade Thickness: " + str(round(self.impeller.bladeThickness*1e3, rounding)))
+        print("\tOutlet Blade Angle: " + str(round(self.impeller.beta2B, rounding)))
+        print("\tInlet Blade Angle: " + str(round(self.impeller.beta1B, rounding)))
 
-
+        print("Note: Values in lists given from outer to inner streamline")
+        
