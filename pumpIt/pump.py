@@ -621,6 +621,12 @@ class Pump:
         print("\tBlade Thickness: " + str(round(self.impeller.bladeThickness*1e3, rounding)))
         print("\tOutlet Blade Angle: " + str(round(self.impeller.beta2B, rounding)))
         print("\tInlet Blade Angle: " + str(round(self.impeller.beta1B, rounding)))
+        print("\tPotential Inlet/Outlet Domain Lengths: ")
+        print("\t\tBlade Length: " + str(round(max(self.blade.bladeLengths)*1e3, rounding)))
+        print("\t\tImpeller Inlet Diameter: " + str(round(self.impeller.impellerInletDiameter*1e3, rounding)))
+        print("\tTurboGrid Data Inputs:")
+        print("\t\tOutlet R: " + str(round((self.impeller.d2/2)*1e3, rounding)))
+        print("\t\tInlet A: " + str(round(self.meridional.outerStreamlineXCoords[0]*1e3, rounding)))
 
         print("Note: Values in lists given from outer to inner streamline")
         
