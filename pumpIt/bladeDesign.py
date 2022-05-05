@@ -67,6 +67,13 @@ class Blade:
         self.streamlinesMeridionalXCoords.append(innerStreamlineMeridionalXCoords)
         self.streamlinesMeridionalYCoords.append(innerStreamlineMeridionalYCoords)
 
+        #Calculate required inlet blade angles for each streamline to achieve specified incidence
+        self.streamlinesInletBladeAngles = []
+        for i in range(len(self.streamlinesMeridionalYCoords)):
+
+            inletAngle = self.calculateInletBladeAngleAtStreamline(self.streamlinesMeridionalYCoords[i][0])
+            self.streamlinesInletBladeAngles.append(inletAngle)
+
         self.bladeDevelopmentBezier = Bezier(self.bladeDevelopmentControlPoints)
         self.streamlineMeridionalLengths = []
         self.streamlineCircumferentialLengths = []
@@ -90,6 +97,7 @@ class Blade:
             
             xCoords = self.streamlinesMeridionalXCoords[i]
             yCoords = self.streamlinesMeridionalYCoords[i]
+            inletBladeAngle = self.streamlinesInletBladeAngles[i]
 
             bladeAngles = []
             deltaMs = []
@@ -103,7 +111,7 @@ class Blade:
 
             for j in range(self.meridionalSection.numberOfPoints-2, 0, -1):
                 
-                bladeAnglej = self.meridionalSection.impeller.inletBladeAngle - (ts[j] * (self.meridionalSection.impeller.inletBladeAngle - self.meridionalSection.impeller.outletBladeAngle))
+                bladeAnglej = inletBladeAngle - (ts[j] * (inletBladeAngle - self.meridionalSection.impeller.outletBladeAngle))
                 bladeAngles.append(bladeAnglej)
 
                 deltaMj = sqrt(((xCoords[j] - xCoords[j+1]) ** 2) + ((yCoords[j] - yCoords[j+1]) ** 2))
@@ -313,3 +321,27 @@ class Blade:
         if self.outletAngleRatio < 0.7 or self.outletAngleRatio > 0.9:
             print("Warning: Outlet angle ratio should be between 0.7 and 0.9")
             print("Outlet angle ratio: " + str(round(self.outletAngleRatio, 2)) + "\n")
+    
+    # Repeats calculation from impeller design to calcualte the correct blade angle needed at the inlet of each streamline
+    def calculateInletBladeAngleAtStreamline(self, streamlineInletRadius):
+
+        impeller = self.meridionalSection.impeller
+
+        u1 = impeller.radPerSec * streamlineInletRadius
+
+        beta1 = degrees(atan2(impeller.c1m, u1 - impeller.c1u))
+
+        # Calculate inlet blade angle and inlet blockage
+
+        beta1B = beta1 + impeller.incidenceAngle
+        beta1Bprev = beta1B + 10
+
+        while abs(abs(beta1B) - abs(beta1Bprev)) > impeller.convergenceCriteria:
+
+            beta1Bprev = beta1B
+
+            inletBladeBlockage = (1 - ((impeller.numberOfBlades * impeller.leadingEdgeTipRadius) / (pi * impeller.impellerInletDiameter * sin(radians(beta1B)) * sin(radians(impeller.inletBladeInclination))))) ** (-1)
+            beta1dash = degrees(atan2(impeller.c1m * inletBladeBlockage, u1 - impeller.c1u))
+            beta1B = beta1dash + impeller.incidenceAngle
+
+        return beta1B

@@ -5,7 +5,7 @@ from bladeDesign import Blade
 from pump import Pump
 from voluteDesign import Volute, TrapezoidalCrossSection, RectangularCrossSection, CircularCrossSection
 
-fluid = fl.Fluid(density=787, viscosity=2.86e-3, vapourPressure=4100)
+fluid = fl.Fluid(density=786, viscosity=2.86e-3, vapourPressure=4100)
 impeller = Impeller(suctionSpecificSpeedEU=650,
             suctionSidePressure=3e5,
             kgPerSec=1.32,
@@ -30,6 +30,16 @@ pump = Pump(impeller, meridionalSection, bladeDesign, volute)
 #pump.plotVelocityTriangle("inlet")
 #pump.plotMeridional()
 #pump.plotPlanView(bladesOrStreamlines="blades", numberOfBlades=1)
-#pump.plotResult(fullMeridional=True)
+pump.plotResult(fullMeridional=True)
 #pump.plotVoluteDevelopmentPlan(polar=False)
-pump.outputBladeGenFiles()
+#pump.outputFiles(unitMultiplier=1e2)
+
+#pump.outputFiles()
+for i in range(len(bladeDesign.streamlinesInletBladeAngles)):
+    print(bladeDesign.streamlinesInletBladeAngles[i], 90-bladeDesign.streamlinesInletBladeAngles[i])
+print("")
+print(90-impeller.beta2B)
+print("")
+for i in range(len(bladeDesign.bladesEpsilonSchs)):
+    print(bladeDesign.bladesEpsilonSchs[i][-1], bladeDesign.bladesEpsilonSchs[i][-1]-bladeDesign.bladesEpsilonSchs[0][-1])
+

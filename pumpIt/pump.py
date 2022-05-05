@@ -271,6 +271,9 @@ class Pump:
             else:
                 ax = plt.axes()
                 ax.axis("equal")
+        else:
+            if not polar:
+                ax.axis("equal")
         
         ax.set_title("Volute Development Plan View")
         if polar:
@@ -570,7 +573,7 @@ class Pump:
 
         print("")
     
-    def outputBladeGenFiles(self, unitMultiplier: float = 1e3, workingDirectory: str = "Output", filename: str = "data", rounding: int = 2):
+    def outputFiles(self, unitMultiplier: float = 1e3, workingDirectory: str = "Output", filename: str = "data", rounding: int = 2):
 
         if workingDirectory.lower() == "output":
 
@@ -600,12 +603,24 @@ class Pump:
 
                 for i in range(numberOfPoints):
 
-                    f.write("\t" + str(rData[i] * unitMultiplier) + " " + str(zData[i] * unitMultiplier) + "\n")
+                    f.write(str(rData[i] * unitMultiplier) + "," + str(-zData[i] * unitMultiplier) + "\n")
+
+        def writeXYZData(xData, yData, zData, dataName, writeType="w"):
+
+            with open(os.path.join(absPath, (filename + "_" + dataName + ".dat")), writeType) as f:
+
+                numberOfPoints = len(xData)
+
+                for i in range(numberOfPoints):
+
+                    f.write(str(xData[i] * unitMultiplier) + ", " + str(yData[i] * unitMultiplier) + ", " + str(zData[i] * unitMultiplier) + "\n")
 
         writeRZData(self.meridional.outerStreamlineYCoords, self.meridional.outerStreamlineXCoords, "outerStreamline")
         writeRZData(self.meridional.innerStreamlineYCoords, self.meridional.innerStreamlineXCoords, "innerStreamline")
         for i in range(0, len(self.blade.bladesRadiuses)):
             writeRTZData(self.blade.bladesRadiuses[i], self.blade.bladesEpsilonSchsRadians[i], self.blade.bladesAxialCoords[i], "blade" + str(i), writeType="w")
+        writeXYZData(self.volute.xCoords, self.volute.yCoords, [self.meridional.outerStreamlineXCoords[-1] for i in range(len(self.volute.totalXCoords))], "volute")
+        writeXYZData(self.volute.rzDashXCoords, self.volute.rzDashYCoords, [self.meridional.outerStreamlineXCoords[-1] for i in range(len(self.volute.rzDashXCoords))], "rzDash")
 
         print("Info: BladeGen data files written to: " + absPath)
         print("Data for manual input:")
@@ -627,6 +642,8 @@ class Pump:
         print("\tTurboGrid Data Inputs:")
         print("\t\tOutlet R: " + str(round((self.impeller.d2/2)*1e3, rounding)))
         print("\t\tInlet A: " + str(round(self.meridional.outerStreamlineXCoords[0]*1e3, rounding)))
+        Re = self.impeller.fluid.density * self.impeller.c2 * (sum(self.blade.bladeLengths)/len(self.blade.bladeLengths)) / self.impeller.fluid.viscosity
+        print("\t\tMaximum Re In Passage: " + str(round(Re, 2)))
 
         print("Note: Values in lists given from outer to inner streamline")
         
